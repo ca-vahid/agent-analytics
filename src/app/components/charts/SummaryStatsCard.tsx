@@ -1,3 +1,5 @@
+"use client";
+
 import React from 'react';
 import { useTickets } from '@/lib/contexts/TicketContext';
 import { formatNumber } from '@/lib/utils';

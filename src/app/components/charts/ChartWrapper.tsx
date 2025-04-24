@@ -1,3 +1,5 @@
+"use client";
+
 import React, { useState, Fragment, ReactNode } from 'react';
 import { Transition, Dialog } from '@headlessui/react';
 import { XMarkIcon, ArrowsPointingOutIcon } from '@heroicons/react/24/outline';
