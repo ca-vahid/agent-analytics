@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   BarChart,
   Bar,
@@ -23,10 +23,6 @@ const COLORS = {
   dark: '#34d399',
 };
 
-// Pagination settings
-const PERIODS_PER_PAGE = 12; // Number of periods to show at once
-const SLIDE_AMOUNT = 6; // Number of periods to slide when clicking navigation buttons
-
 // Use the same diverse palette as the agent chart for teams
 const TEAM_COLORS = [
   '#3b82f6', '#ef4444', '#10b981', '#f97316', '#8b5cf6', '#eab308',
@@ -34,6 +30,10 @@ const TEAM_COLORS = [
   '#22c55e', '#f59e0b', '#a855f7', '#84cc16', '#06b6d4', '#a78bfa',
   '#facc15', '#fb7185' 
 ];
+
+// Pagination settings (same as MonthlyTicketsChart)
+const MAX_PERIODS_TO_SHOW = 12;
+const SLIDE_STEP = Math.max(1, Math.floor(MAX_PERIODS_TO_SHOW / 2));
 
 // --- Data Processing Functions (Reused from MonthlyTicketsChart) ---
 
@@ -206,97 +206,102 @@ const formatPeriodLabel = (period: string) => {
   }
 };
 
-// Rename component (internally for now) for clarity
-const TeamMonthlyChart: React.FC = () => { 
-  // Fetch necessary data from context
-  const { 
-    monthlyData, 
+const TeamDistributionChart: React.FC = () => {
+  const {
+    monthlyData,
     weeklyData,
-    monthlyTeamData, 
+    monthlyTeamData,
     weeklyTeamData,
-    filters, 
-    setFilters, 
-    teamData 
+    filters,
+    setFilters,
+    teamData
   } = useTickets();
-  
+
   // State for chart interactions
   const [refAreaLeft, setRefAreaLeft] = useState('');
   const [refAreaRight, setRefAreaRight] = useState('');
   const [highlightedTeam, setHighlightedTeam] = useState<string | null>(null);
   const [hoveredTeam, setHoveredTeam] = useState<string | null>(null);
   const [inactiveTeams, setInactiveTeams] = useState<string[]>([]);
-  
-  // State for view mode
+
+  // State for view mode and pagination
   const [viewMode, setViewMode] = useState<'month' | 'week'>('month');
-  
-  // Pagination state
-  const [startIdx, setStartIdx] = useState(0);
-  
+  const [startIndex, setStartIndex] = useState(0);
+  const [periodsToShow, setPeriodsToShow] = useState<number | 'all'>(12); // State for adjustable periods
+
   const selectedTeams = filters.groups; // Use groups filter for teams
   const isTeamView = selectedTeams.length > 0;
 
-  // Reset interaction state when dependencies change
-  React.useEffect(() => {
+  // Derived pagination constants
+  const maxPeriods = periodsToShow === 'all' ? Infinity : periodsToShow;
+  const slideStep = periodsToShow === 'all' ? 0 : Math.max(1, Math.floor(maxPeriods / 2));
+
+  // Reset interaction state and pagination when dependencies change
+  useEffect(() => {
     setHighlightedTeam(null);
     setInactiveTeams([]);
     setHoveredTeam(null);
-    setStartIdx(0); // Reset to first page when view mode changes
-  }, [selectedTeams, viewMode]);
+    setStartIndex(0); // Reset pagination
+  }, [selectedTeams, viewMode, periodsToShow]); // Reset on periodsToShow change too
 
   // Get appropriate data based on view mode
   const periodData = viewMode === 'month' ? monthlyData : weeklyData;
   const periodTeamData = viewMode === 'month' ? monthlyTeamData : weeklyTeamData;
 
-  // Process data for total view (Bar Chart)
+  // --- Process FULL data first ---
   const fullTotalData = useMemo(() => {
     if (isTeamView) return [];
-    
     const mappedData = periodData?.map(item => ({
       name: viewMode === 'month' ? item.yearMonth : item.yearWeek,
       value: item.count
     })) || [];
-    
     return fillMissingPeriods(mappedData);
   }, [periodData, isTeamView, viewMode]);
 
-  // Process data for team view (Line Chart)
   const fullTeamData = useMemo(() => {
     if (!isTeamView) return [];
     return processTeamTimeData(periodTeamData, selectedTeams);
   }, [periodTeamData, selectedTeams, isTeamView, viewMode]);
-  
-  // Apply pagination to the data
-  const totalData = useMemo(() => {
-    const data = fullTotalData;
-    const end = Math.min(startIdx + PERIODS_PER_PAGE, data.length);
-    return data.slice(startIdx, end);
-  }, [fullTotalData, startIdx]);
 
-  const teamDataForChart = useMemo(() => {
-    const data = fullTeamData;
-    const end = Math.min(startIdx + PERIODS_PER_PAGE, data.length);
-    return data.slice(startIdx, end);
-  }, [fullTeamData, startIdx]);
+  // --- Calculate Pagination and Displayed Data ---
+  const fullData = isTeamView ? fullTeamData : fullTotalData;
+  const totalPeriods = fullData.length;
+  const canPaginate = periodsToShow !== 'all' && totalPeriods > maxPeriods;
 
-  // Pagination controls
-  const canGoBack = startIdx > 0;
-  const canGoForward = isTeamView 
-    ? startIdx + PERIODS_PER_PAGE < fullTeamData.length
-    : startIdx + PERIODS_PER_PAGE < fullTotalData.length;
+  // Adjust startIndex if it becomes invalid after periodsToShow changes
+  useEffect(() => {
+    if (typeof periodsToShow === 'number') {
+      if (startIndex > totalPeriods - periodsToShow) {
+        setStartIndex(Math.max(0, totalPeriods - periodsToShow));
+      }
+    } else { // periodsToShow is 'all'
+      setStartIndex(0);
+    }
+  }, [periodsToShow, totalPeriods, startIndex]);
 
-  const goBack = () => {
-    if (!canGoBack) return;
-    setStartIdx(prev => Math.max(0, prev - SLIDE_AMOUNT));
+  const currentStartIndex = typeof periodsToShow === 'number'
+    ? Math.max(0, Math.min(startIndex, totalPeriods - periodsToShow))
+    : 0;
+
+  const displayedData = useMemo(() => {
+    if (periodsToShow === 'all' || !canPaginate) return fullData;
+    return fullData.slice(currentStartIndex, currentStartIndex + maxPeriods);
+  }, [fullData, currentStartIndex, maxPeriods, canPaginate, periodsToShow]);
+
+  // --- Pagination Handlers ---
+  const handlePrevious = () => {
+    setStartIndex(prev => Math.max(0, prev - slideStep));
   };
 
-  const goForward = () => {
-    if (!canGoForward) return;
-    const maxStartIdx = isTeamView 
-      ? Math.max(0, fullTeamData.length - PERIODS_PER_PAGE)
-      : Math.max(0, fullTotalData.length - PERIODS_PER_PAGE);
-    setStartIdx(prev => Math.min(maxStartIdx, prev + SLIDE_AMOUNT));
+  const handleNext = () => {
+    if (typeof periodsToShow === 'number') {
+      setStartIndex(prev => Math.min(totalPeriods - periodsToShow, prev + slideStep));
+    }
   };
-  
+
+  const canGoPrevious = canPaginate && currentStartIndex > 0;
+  const canGoNext = canPaginate && typeof periodsToShow === 'number' && currentStartIndex < totalPeriods - periodsToShow;
+
   // Handle range selection
   const handlePeriodRangeSelection = () => { 
     if (refAreaLeft === refAreaRight || !refAreaLeft || !refAreaRight) {
@@ -376,10 +381,12 @@ const TeamMonthlyChart: React.FC = () => {
     let csvContent: string;
     let filename: string;
 
+    const dataToDownload = isTeamView ? fullTeamData : fullTotalData;
+
     if (isTeamView) {
       const activeTeams = selectedTeams.filter(team => !inactiveTeams.includes(team));
       const headers = ['Period', ...activeTeams];
-      const rows = teamDataForChart.map(entry => 
+      const rows = (dataToDownload as { name: string; [teamName: string]: number | string }[]).map(entry => 
         [entry.name, ...activeTeams.map(team => entry[team] || 0)]
       );
       csvContent = [headers, ...rows].map(row => row.join(',')).join('\n');
@@ -387,7 +394,7 @@ const TeamMonthlyChart: React.FC = () => {
     } else {
       csvContent = [
         ['Period', 'Total Ticket Count'],
-        ...totalData.map((entry) => [entry.name, entry.value]),
+        ...(dataToDownload as { name: string; value: number }[]).map((entry) => [entry.name, entry.value]),
       ].map((row) => row.join(',')).join('\n');
       filename = `tickets_total_${viewMode}.csv`;
     }
@@ -407,56 +414,16 @@ const TeamMonthlyChart: React.FC = () => {
   const viewModeText = viewMode === 'month' ? 'Monthly' : 'Weekly';
   const chartTitle = isTeamView ? `${viewModeText} Tickets by Team` : `${viewModeText} Tickets (All Teams)`;
   
-  const chartFooter = `Click and drag to select a date range. ${isTeamView ? 'Click legend to highlight/toggle team visibility.' : ''} Use arrows to navigate through time periods.`;
+  const chartFooter = `Click and drag to select a date range. ${isTeamView ? 'Click legend to highlight/toggle team visibility.' : ''}`;
   
   // Calculate if there's currently a date filter applied
   const hasDateFilter = filters.dateRange[0] !== null && filters.dateRange[1] !== null;
-
-  // Navigation buttons to include in the chart
-  const navigationControls = (
-    <div className="flex items-center justify-center space-x-2 mt-1 mb-2">
-      <button
-        onClick={goBack}
-        disabled={!canGoBack}
-        className={`p-1 rounded-full ${
-          canGoBack
-            ? 'text-blue-500 hover:bg-blue-100 dark:hover:bg-blue-900/30'
-            : 'text-gray-300 dark:text-gray-600 cursor-not-allowed'
-        }`}
-        aria-label="Previous periods"
-      >
-        <ChevronLeftIcon className="h-5 w-5" />
-      </button>
-      <span className="text-xs text-gray-500 dark:text-gray-400">
-        {isTeamView
-          ? fullTeamData.length > 0
-            ? `Showing ${startIdx + 1}-${Math.min(startIdx + PERIODS_PER_PAGE, fullTeamData.length)} of ${fullTeamData.length}`
-            : 'No data'
-          : fullTotalData.length > 0
-          ? `Showing ${startIdx + 1}-${Math.min(startIdx + PERIODS_PER_PAGE, fullTotalData.length)} of ${fullTotalData.length}`
-          : 'No data'
-        }
-      </span>
-      <button
-        onClick={goForward}
-        disabled={!canGoForward}
-        className={`p-1 rounded-full ${
-          canGoForward
-            ? 'text-blue-500 hover:bg-blue-100 dark:hover:bg-blue-900/30'
-            : 'text-gray-300 dark:text-gray-600 cursor-not-allowed'
-        }`}
-        aria-label="Next periods"
-      >
-        <ChevronRightIcon className="h-5 w-5" />
-      </button>
-    </div>
-  );
 
   // Render logic for the Bar Chart (Total View)
   const renderTotalChart = () => (
     <ResponsiveContainer width="100%" height="100%" minHeight={300}>
       <BarChart
-        data={totalData}
+        data={displayedData}
         margin={{ top: 5, right: 5, left: 5, bottom: 20 }}
         onMouseDown={(e) => e && e.activeLabel && setRefAreaLeft(e.activeLabel)}
         onMouseMove={(e) => refAreaLeft && e && e.activeLabel && setRefAreaRight(e.activeLabel)}
@@ -470,6 +437,7 @@ const TeamMonthlyChart: React.FC = () => {
           height={70}
           tick={{ fontSize: 11, fill: '#6b7280' }}
           tickFormatter={formatPeriodLabel}
+          interval={0}
         />
         <YAxis tick={{ fontSize: 12, fill: '#6b7280' }} tickFormatter={formatNumber} />
         <Tooltip
@@ -485,7 +453,7 @@ const TeamMonthlyChart: React.FC = () => {
         <Legend />
         <Bar dataKey="value" name="Total Tickets" fill={COLORS.default} fillOpacity={0.8} activeBar={{ fill: COLORS.dark, fillOpacity: 1 }} />
         {refAreaLeft && refAreaRight && (
-          <ReferenceArea x1={refAreaLeft} x2={refAreaRight} strokeOpacity={0.3} fill={COLORS.default} fillOpacity={0.3} />
+          <ReferenceArea x1={refAreaLeft} x2={refAreaRight} strokeOpacity={0.3} fill={COLORS.default} fillOpacity={0.3} ifOverflow="visible" />
         )}
       </BarChart>
     </ResponsiveContainer>
@@ -495,7 +463,7 @@ const TeamMonthlyChart: React.FC = () => {
   const renderTeamChart = () => (
     <ResponsiveContainer width="100%" height="100%" minHeight={300}>
       <LineChart
-        data={teamDataForChart}
+        data={displayedData}
         margin={{ top: 5, right: 5, left: 5, bottom: 20 }}
         onMouseDown={(e) => e && e.activeLabel && setRefAreaLeft(e.activeLabel)}
         onMouseMove={(e) => {
@@ -529,6 +497,7 @@ const TeamMonthlyChart: React.FC = () => {
           height={70}
           tick={{ fontSize: 11, fill: '#6b7280' }}
           tickFormatter={formatPeriodLabel}
+          interval={0}
         />
         <YAxis tick={{ fontSize: 12, fill: '#6b7280' }} tickFormatter={formatNumber} />
         <Tooltip
@@ -585,62 +554,112 @@ const TeamMonthlyChart: React.FC = () => {
           );
         })}
         {refAreaLeft && refAreaRight && (
-          <ReferenceArea x1={refAreaLeft} x2={refAreaRight} strokeOpacity={0.3} fill={COLORS.default} fillOpacity={0.3} />
+          <ReferenceArea x1={refAreaLeft} x2={refAreaRight} strokeOpacity={0.3} fill={COLORS.default} fillOpacity={0.3} ifOverflow="visible" />
         )}
       </LineChart>
     </ResponsiveContainer>
   );
 
-  // Main chart content
+  // Main chart content including pagination
   const chartContent = (
-    <>
-      {(isTeamView ? teamDataForChart.length === 0 : totalData.length === 0) ? (
+    <div className="flex flex-col h-full">
+       {(isTeamView ? fullTeamData.length === 0 : fullTotalData.length === 0) ? (
         <div className="flex-grow flex items-center justify-center">
           <p className="text-gray-500 dark:text-gray-400">No data available for the selected filters</p>
         </div>
       ) : (
-        <>
+        <div className="flex-grow overflow-hidden"> {/* Add overflow-hidden */}
           {isTeamView ? renderTeamChart() : renderTotalChart()}
-          {navigationControls}
-        </>
+        </div>
       )}
-    </>
+      {/* Pagination Controls */}
+      {canPaginate && (
+        <div className="flex justify-center items-center mt-3 space-x-2 flex-shrink-0"> {/* Prevent shrinking */}
+          <button
+            onClick={handlePrevious}
+            disabled={!canGoPrevious}
+            className="p-1 rounded-md bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-300 dark:hover:bg-gray-600"
+            aria-label="Previous period range"
+          >
+            <ChevronLeftIcon className="h-4 w-4" />
+          </button>
+           <span className="text-xs text-gray-500 dark:text-gray-400">
+             {/* Fix: Use typeof check */}
+             {typeof periodsToShow === 'number' && displayedData.length > 0
+               ? `Showing ${formatPeriodLabel(displayedData[0]?.name)} - ${formatPeriodLabel(displayedData[displayedData.length - 1]?.name)}`
+               : 'Showing All'}
+           </span>
+          <button
+            onClick={handleNext}
+            disabled={!canGoNext}
+            className="p-1 rounded-md bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-300 dark:hover:bg-gray-600"
+            aria-label="Next period range"
+          >
+            <ChevronRightIcon className="h-4 w-4" />
+          </button>
+        </div>
+      )}
+    </div>
   );
   
   // Extra controls for chart options
   const chartControls = (
-    <div className="flex justify-between mb-2">
-      <div className="flex space-x-2">
+    <div className="flex flex-col sm:flex-row justify-between mb-2 gap-2"> {/* Flex column on small screens */}
+       {/* Left side controls: View Mode */} 
+      <div className="flex space-x-2 items-center">
         <button
-          onClick={() => setViewMode('month')}
+          onClick={() => { setViewMode('month'); }}
           className={`px-2 py-1 text-xs rounded-md transition-colors ${
-            viewMode === 'month' 
-              ? 'bg-blue-500 text-white' 
+            viewMode === 'month'
+              ? 'bg-blue-500 text-white'
               : 'bg-gray-200 text-gray-700 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600'
           }`}
         >
           Monthly
         </button>
         <button
-          onClick={() => setViewMode('week')}
+          onClick={() => { setViewMode('week'); }}
           className={`px-2 py-1 text-xs rounded-md transition-colors ${
-            viewMode === 'week' 
-              ? 'bg-blue-500 text-white' 
+            viewMode === 'week'
+              ? 'bg-blue-500 text-white'
               : 'bg-gray-200 text-gray-700 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600'
           }`}
         >
           Weekly
         </button>
       </div>
-      
-      {hasDateFilter && (
-        <button
-          onClick={clearDateRange}
-          className="px-2 py-1 text-xs rounded-md bg-gray-200 text-gray-700 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600 transition-colors"
-        >
-          Clear Date Filter
-        </button>
-      )}
+
+      {/* Right side controls: Date Filter & Period Selector */} 
+      <div className="flex space-x-2 items-center">
+        {hasDateFilter && (
+          <button
+            onClick={clearDateRange}
+            className="px-2 py-1 text-xs rounded-md bg-gray-200 text-gray-700 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600 transition-colors"
+          >
+            Clear Date Filter
+          </button>
+        )}
+         {/* Period Selector Dropdown */} 
+        <div className="relative">
+          <select
+            value={periodsToShow === 'all' ? 'all' : periodsToShow.toString()}
+            onChange={(e) => {
+              const value = e.target.value;
+              setPeriodsToShow(value === 'all' ? 'all' : parseInt(value));
+            }}
+            className="appearance-none text-xs px-2 py-1 pr-6 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+            aria-label="Select number of periods to show"
+          >
+            <option value="6">6 Periods</option>
+            <option value="12">12 Periods</option>
+            <option value="24">24 Periods</option>
+            <option value="all">All Periods</option>
+          </select>
+          <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-1 text-gray-700 dark:text-gray-400">
+             <svg className="fill-current h-3 w-3" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/></svg>
+          </div>
+        </div>
+      </div>
     </div>
   );
   
@@ -657,4 +676,4 @@ const TeamMonthlyChart: React.FC = () => {
 };
 
 // Export with the new name
-export default TeamMonthlyChart; 
+export default TeamDistributionChart; 
