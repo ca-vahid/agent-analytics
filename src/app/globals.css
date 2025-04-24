@@ -1,0 +1,67 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --foreground-rgb: 0, 0, 0;
+  --background-rgb: 245, 247, 250;
+}
+
+.dark {
+  --foreground-rgb: 255, 255, 255;
+  --background-rgb: 15, 23, 42;
+}
+
+body {
+  color: rgb(var(--foreground-rgb));
+  background-color: rgb(var(--background-rgb));
+}
+
+/* Fix for Datepicker in dark mode */
+.react-datepicker {
+  @apply bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-700 shadow-lg;
+}
+
+.react-datepicker__header {
+  @apply bg-gray-50 dark:bg-gray-700 border-gray-300 dark:border-gray-600;
+}
+
+.react-datepicker__current-month,
+.react-datepicker__day-name {
+  @apply text-gray-700 dark:text-gray-300;
+}
+
+.react-datepicker__day {
+  @apply text-gray-700 dark:text-gray-300 hover:bg-blue-100 dark:hover:bg-blue-900;
+}
+
+.react-datepicker__day--selected {
+  @apply bg-blue-500 text-white hover:bg-blue-600;
+}
+
+.react-datepicker__day--disabled {
+  @apply text-gray-400 dark:text-gray-600;
+}
+
+/* Recharts dark mode fixes */
+.recharts-tooltip-cursor {
+  @apply dark:fill-gray-700 dark:stroke-gray-600;
+}
+
+.recharts-default-tooltip {
+  @apply dark:bg-gray-800 dark:border-gray-700 dark:text-gray-300;
+}
+
+.recharts-cartesian-axis-tick-value {
+  @apply fill-gray-700 dark:fill-gray-300;
+}
+
+.recharts-legend-item-text {
+  @apply dark:text-gray-300;
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+}
