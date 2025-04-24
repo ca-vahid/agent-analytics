@@ -16,11 +16,16 @@ import { useTickets } from '@/lib/contexts/TicketContext';
 import { formatNumber } from '@/lib/utils';
 import ChartWrapper from './ChartWrapper';
 import { format, parse } from 'date-fns';
+import { ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
 
 const COLORS = {
   default: '#3b82f6', // blue-500
   dark: '#60a5fa', // blue-400
 };
+
+// Pagination settings
+const PERIODS_PER_PAGE = 12; // Number of periods to show at once
+const SLIDE_AMOUNT = 6; // Number of periods to slide when clicking navigation buttons
 
 // Palette for agent lines
 const AGENT_COLORS = [
@@ -224,6 +229,9 @@ const MonthlyTicketsChart: React.FC = () => {
   // State for view mode
   const [viewMode, setViewMode] = useState<'month' | 'week'>('month');
   
+  // Pagination state
+  const [startIdx, setStartIdx] = useState(0);
+  
   const selectedAgents = filters.agents;
   const isAgentView = selectedAgents.length > 0;
 
@@ -232,6 +240,7 @@ const MonthlyTicketsChart: React.FC = () => {
     setHighlightedAgent(null);
     setInactiveAgents([]);
     setHoveredAgent(null);
+    setStartIdx(0); // Reset to first page when view mode changes
   }, [selectedAgents, viewMode]);
 
   // Get appropriate data based on view mode
@@ -239,7 +248,7 @@ const MonthlyTicketsChart: React.FC = () => {
   const periodAgentData = viewMode === 'month' ? monthlyAgentData : weeklyAgentData;
 
   // Process data for charts
-  const totalData = useMemo(() => {
+  const fullTotalData = useMemo(() => {
     if (isAgentView) return [];
     
     const mappedData = periodData?.map(item => ({
@@ -250,10 +259,42 @@ const MonthlyTicketsChart: React.FC = () => {
     return fillMissingPeriods(mappedData);
   }, [periodData, isAgentView, viewMode]);
 
-  const agentDataForChart = useMemo(() => {
+  const fullAgentData = useMemo(() => {
     if (!isAgentView) return [];
     return processAgentTimeData(periodAgentData, selectedAgents);
   }, [periodAgentData, selectedAgents, isAgentView, viewMode]);
+
+  // Apply pagination to the data
+  const totalData = useMemo(() => {
+    const data = fullTotalData;
+    const end = Math.min(startIdx + PERIODS_PER_PAGE, data.length);
+    return data.slice(startIdx, end);
+  }, [fullTotalData, startIdx]);
+
+  const agentDataForChart = useMemo(() => {
+    const data = fullAgentData;
+    const end = Math.min(startIdx + PERIODS_PER_PAGE, data.length);
+    return data.slice(startIdx, end);
+  }, [fullAgentData, startIdx]);
+
+  // Pagination controls
+  const canGoBack = startIdx > 0;
+  const canGoForward = isAgentView 
+    ? startIdx + PERIODS_PER_PAGE < fullAgentData.length
+    : startIdx + PERIODS_PER_PAGE < fullTotalData.length;
+
+  const goBack = () => {
+    if (!canGoBack) return;
+    setStartIdx(prev => Math.max(0, prev - SLIDE_AMOUNT));
+  };
+
+  const goForward = () => {
+    if (!canGoForward) return;
+    const maxStartIdx = isAgentView 
+      ? Math.max(0, fullAgentData.length - PERIODS_PER_PAGE)
+      : Math.max(0, fullTotalData.length - PERIODS_PER_PAGE);
+    setStartIdx(prev => Math.min(maxStartIdx, prev + SLIDE_AMOUNT));
+  };
 
   const handlePeriodRangeSelection = () => {
     if (refAreaLeft === refAreaRight || !refAreaLeft || !refAreaRight) {
@@ -363,10 +404,50 @@ const MonthlyTicketsChart: React.FC = () => {
   const viewModeText = viewMode === 'month' ? 'Monthly' : 'Weekly';
   const chartTitle = isAgentView ? `${viewModeText} Tickets by Agent` : `${viewModeText} Tickets`;
   
-  const chartFooter = `Click and drag to select a date range. ${isAgentView ? 'Click legend to highlight/toggle agent visibility.' : ''}`;
+  const chartFooter = `Click and drag to select a date range. ${isAgentView ? 'Click legend to highlight/toggle agent visibility.' : ''} Use arrows to navigate through time periods.`;
   
   // Calculate if there's currently a date filter applied
   const hasDateFilter = filters.dateRange[0] !== null && filters.dateRange[1] !== null;
+
+  // Navigation buttons to include in the chart
+  const navigationControls = (
+    <div className="flex items-center justify-center space-x-2 mt-1 mb-2">
+      <button
+        onClick={goBack}
+        disabled={!canGoBack}
+        className={`p-1 rounded-full ${
+          canGoBack
+            ? 'text-blue-500 hover:bg-blue-100 dark:hover:bg-blue-900/30'
+            : 'text-gray-300 dark:text-gray-600 cursor-not-allowed'
+        }`}
+        aria-label="Previous periods"
+      >
+        <ChevronLeftIcon className="h-5 w-5" />
+      </button>
+      <span className="text-xs text-gray-500 dark:text-gray-400">
+        {isAgentView
+          ? fullAgentData.length > 0
+            ? `Showing ${startIdx + 1}-${Math.min(startIdx + PERIODS_PER_PAGE, fullAgentData.length)} of ${fullAgentData.length}`
+            : 'No data'
+          : fullTotalData.length > 0
+          ? `Showing ${startIdx + 1}-${Math.min(startIdx + PERIODS_PER_PAGE, fullTotalData.length)} of ${fullTotalData.length}`
+          : 'No data'
+        }
+      </span>
+      <button
+        onClick={goForward}
+        disabled={!canGoForward}
+        className={`p-1 rounded-full ${
+          canGoForward
+            ? 'text-blue-500 hover:bg-blue-100 dark:hover:bg-blue-900/30'
+            : 'text-gray-300 dark:text-gray-600 cursor-not-allowed'
+        }`}
+        aria-label="Next periods"
+      >
+        <ChevronRightIcon className="h-5 w-5" />
+      </button>
+    </div>
+  );
 
   const renderTotalChart = () => (
     <ResponsiveContainer width="100%" height="100%" minHeight={300}>
@@ -514,7 +595,10 @@ const MonthlyTicketsChart: React.FC = () => {
           <p className="text-gray-500 dark:text-gray-400">No data available for the selected filters</p>
         </div>
       ) : (
-        isAgentView ? renderAgentChart() : renderTotalChart()
+        <>
+          {isAgentView ? renderAgentChart() : renderTotalChart()}
+          {navigationControls}
+        </>
       )}
     </>
   );

@@ -16,11 +16,16 @@ import { useTickets } from '@/lib/contexts/TicketContext';
 import { formatNumber } from '@/lib/utils';
 import ChartWrapper from './ChartWrapper';
 import { format, parse } from 'date-fns';
+import { ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
 
 const COLORS = {
   default: '#10b981', // Use a base color for the total bar chart
   dark: '#34d399',
 };
+
+// Pagination settings
+const PERIODS_PER_PAGE = 12; // Number of periods to show at once
+const SLIDE_AMOUNT = 6; // Number of periods to slide when clicking navigation buttons
 
 // Use the same diverse palette as the agent chart for teams
 const TEAM_COLORS = [
@@ -224,6 +229,9 @@ const TeamMonthlyChart: React.FC = () => {
   // State for view mode
   const [viewMode, setViewMode] = useState<'month' | 'week'>('month');
   
+  // Pagination state
+  const [startIdx, setStartIdx] = useState(0);
+  
   const selectedTeams = filters.groups; // Use groups filter for teams
   const isTeamView = selectedTeams.length > 0;
 
@@ -232,6 +240,7 @@ const TeamMonthlyChart: React.FC = () => {
     setHighlightedTeam(null);
     setInactiveTeams([]);
     setHoveredTeam(null);
+    setStartIdx(0); // Reset to first page when view mode changes
   }, [selectedTeams, viewMode]);
 
   // Get appropriate data based on view mode
@@ -239,7 +248,7 @@ const TeamMonthlyChart: React.FC = () => {
   const periodTeamData = viewMode === 'month' ? monthlyTeamData : weeklyTeamData;
 
   // Process data for total view (Bar Chart)
-  const totalData = useMemo(() => {
+  const fullTotalData = useMemo(() => {
     if (isTeamView) return [];
     
     const mappedData = periodData?.map(item => ({
@@ -251,10 +260,42 @@ const TeamMonthlyChart: React.FC = () => {
   }, [periodData, isTeamView, viewMode]);
 
   // Process data for team view (Line Chart)
-  const teamDataForChart = useMemo(() => {
+  const fullTeamData = useMemo(() => {
     if (!isTeamView) return [];
     return processTeamTimeData(periodTeamData, selectedTeams);
   }, [periodTeamData, selectedTeams, isTeamView, viewMode]);
+  
+  // Apply pagination to the data
+  const totalData = useMemo(() => {
+    const data = fullTotalData;
+    const end = Math.min(startIdx + PERIODS_PER_PAGE, data.length);
+    return data.slice(startIdx, end);
+  }, [fullTotalData, startIdx]);
+
+  const teamDataForChart = useMemo(() => {
+    const data = fullTeamData;
+    const end = Math.min(startIdx + PERIODS_PER_PAGE, data.length);
+    return data.slice(startIdx, end);
+  }, [fullTeamData, startIdx]);
+
+  // Pagination controls
+  const canGoBack = startIdx > 0;
+  const canGoForward = isTeamView 
+    ? startIdx + PERIODS_PER_PAGE < fullTeamData.length
+    : startIdx + PERIODS_PER_PAGE < fullTotalData.length;
+
+  const goBack = () => {
+    if (!canGoBack) return;
+    setStartIdx(prev => Math.max(0, prev - SLIDE_AMOUNT));
+  };
+
+  const goForward = () => {
+    if (!canGoForward) return;
+    const maxStartIdx = isTeamView 
+      ? Math.max(0, fullTeamData.length - PERIODS_PER_PAGE)
+      : Math.max(0, fullTotalData.length - PERIODS_PER_PAGE);
+    setStartIdx(prev => Math.min(maxStartIdx, prev + SLIDE_AMOUNT));
+  };
   
   // Handle range selection
   const handlePeriodRangeSelection = () => { 
@@ -366,10 +407,50 @@ const TeamMonthlyChart: React.FC = () => {
   const viewModeText = viewMode === 'month' ? 'Monthly' : 'Weekly';
   const chartTitle = isTeamView ? `${viewModeText} Tickets by Team` : `${viewModeText} Tickets (All Teams)`;
   
-  const chartFooter = `Click and drag to select a date range. ${isTeamView ? 'Click legend to highlight/toggle team visibility.' : ''}`;
+  const chartFooter = `Click and drag to select a date range. ${isTeamView ? 'Click legend to highlight/toggle team visibility.' : ''} Use arrows to navigate through time periods.`;
   
   // Calculate if there's currently a date filter applied
   const hasDateFilter = filters.dateRange[0] !== null && filters.dateRange[1] !== null;
+
+  // Navigation buttons to include in the chart
+  const navigationControls = (
+    <div className="flex items-center justify-center space-x-2 mt-1 mb-2">
+      <button
+        onClick={goBack}
+        disabled={!canGoBack}
+        className={`p-1 rounded-full ${
+          canGoBack
+            ? 'text-blue-500 hover:bg-blue-100 dark:hover:bg-blue-900/30'
+            : 'text-gray-300 dark:text-gray-600 cursor-not-allowed'
+        }`}
+        aria-label="Previous periods"
+      >
+        <ChevronLeftIcon className="h-5 w-5" />
+      </button>
+      <span className="text-xs text-gray-500 dark:text-gray-400">
+        {isTeamView
+          ? fullTeamData.length > 0
+            ? `Showing ${startIdx + 1}-${Math.min(startIdx + PERIODS_PER_PAGE, fullTeamData.length)} of ${fullTeamData.length}`
+            : 'No data'
+          : fullTotalData.length > 0
+          ? `Showing ${startIdx + 1}-${Math.min(startIdx + PERIODS_PER_PAGE, fullTotalData.length)} of ${fullTotalData.length}`
+          : 'No data'
+        }
+      </span>
+      <button
+        onClick={goForward}
+        disabled={!canGoForward}
+        className={`p-1 rounded-full ${
+          canGoForward
+            ? 'text-blue-500 hover:bg-blue-100 dark:hover:bg-blue-900/30'
+            : 'text-gray-300 dark:text-gray-600 cursor-not-allowed'
+        }`}
+        aria-label="Next periods"
+      >
+        <ChevronRightIcon className="h-5 w-5" />
+      </button>
+    </div>
+  );
 
   // Render logic for the Bar Chart (Total View)
   const renderTotalChart = () => (
@@ -518,7 +599,10 @@ const TeamMonthlyChart: React.FC = () => {
           <p className="text-gray-500 dark:text-gray-400">No data available for the selected filters</p>
         </div>
       ) : (
-        isTeamView ? renderTeamChart() : renderTotalChart()
+        <>
+          {isTeamView ? renderTeamChart() : renderTotalChart()}
+          {navigationControls}
+        </>
       )}
     </>
   );
