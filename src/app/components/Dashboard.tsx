@@ -15,7 +15,7 @@ const Dashboard: React.FC = () => {
         <div className="text-center max-w-md p-6 bg-white dark:bg-gray-800 rounded-lg shadow-lg">
           <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">Welcome to Ticket Analytics</h2>
           <p className="text-gray-600 dark:text-gray-300 mb-6">
-            Get started by uploading your Freshservice CSV export using the "Upload Data" button in the sidebar.
+            Get started by uploading your Freshservice CSV export using the &quot;Upload Data&quot; button in the sidebar.
           </p>
           <div className="bg-blue-50 dark:bg-blue-900/30 p-4 rounded-md text-sm text-blue-800 dark:text-blue-200">
             <h3 className="font-semibold mb-2">Required CSV Format:</h3>
@@ -64,4 +64,4 @@ const Dashboard: React.FC = () => {
   );
 };
 
-export default Dashboard; 
+export default Dashboard;
