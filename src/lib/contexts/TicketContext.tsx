@@ -9,6 +9,7 @@ import {
   groupTicketsByAgent,
   groupTicketsByCategory,
   groupTicketsByStatus,
+  groupTicketsByPriority,
   groupTicketsByMonthAndAgent,
   groupTicketsByMonthAndTeam,
   groupTicketsByWeek,
@@ -40,6 +41,7 @@ interface TicketContextType {
   agentData: TicketAggregate[];
   categoryData: TicketAggregate[];
   statusData: TicketAggregate[];
+  priorityData: TicketAggregate[];
   monthlyAgentData: { [yearMonth: string]: { [agentName: string]: number } };
   monthlyTeamData: { [yearMonth: string]: { [teamName: string]: number } };
   
@@ -61,11 +63,49 @@ const defaultFilters: FilterOptions = {
 const TicketContext = createContext<TicketContextType | undefined>(undefined);
 
 export const TicketProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [rawData, setRawData] = useState<any[]>([]);
+  // Initialize state from localStorage if available
+  const [rawData, setRawDataState] = useState<any[]>(() => {
+    if (typeof window !== 'undefined') {
+      const savedData = localStorage.getItem('ticketRawData');
+      return savedData ? JSON.parse(savedData) : [];
+    }
+    return [];
+  });
+
+  const [filters, setFiltersState] = useState<FilterOptions>(() => {
+    if (typeof window !== 'undefined') {
+      const savedFilters = localStorage.getItem('ticketFilters');
+      return savedFilters ? JSON.parse(savedFilters) : defaultFilters;
+    }
+    return defaultFilters;
+  });
+
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [filteredTickets, setFilteredTickets] = useState<Ticket[]>([]);
-  const [filters, setFiltersState] = useState<FilterOptions>(defaultFilters);
   const [isLoading, setIsLoading] = useState<boolean>(false);
+  
+  // Save to localStorage when data changes
+  const setRawData = (data: any[]) => {
+    setRawDataState(data);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('ticketRawData', JSON.stringify(data));
+    }
+  };
+
+  const setFilters = (newFilters: Partial<FilterOptions>) => {
+    const updatedFilters = { ...filters, ...newFilters };
+    setFiltersState(updatedFilters);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('ticketFilters', JSON.stringify(updatedFilters));
+    }
+  };
+  
+  const resetFilters = () => {
+    setFiltersState(defaultFilters);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('ticketFilters', JSON.stringify(defaultFilters));
+    }
+  };
   
   // Process raw data into normalized ticket format
   useEffect(() => {
@@ -102,6 +142,7 @@ export const TicketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const agentData = useMemo(() => groupTicketsByAgent(filteredTickets), [filteredTickets]);
   const categoryData = useMemo(() => groupTicketsByCategory(filteredTickets), [filteredTickets]);
   const statusData = useMemo(() => groupTicketsByStatus(filteredTickets), [filteredTickets]);
+  const priorityData = useMemo(() => groupTicketsByPriority(filteredTickets), [filteredTickets]);
   const monthlyAgentData = useMemo(() => groupTicketsByMonthAndAgent(filteredTickets), [filteredTickets]);
   const monthlyTeamData = useMemo(() => groupTicketsByMonthAndTeam(filteredTickets), [filteredTickets]);
   
@@ -109,14 +150,6 @@ export const TicketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const weeklyData = useMemo(() => groupTicketsByWeek(filteredTickets), [filteredTickets]);
   const weeklyAgentData = useMemo(() => groupTicketsByWeekAndAgent(filteredTickets), [filteredTickets]);
   const weeklyTeamData = useMemo(() => groupTicketsByWeekAndTeam(filteredTickets), [filteredTickets]);
-  
-  const setFilters = (newFilters: Partial<FilterOptions>) => {
-    setFiltersState(prev => ({ ...prev, ...newFilters }));
-  };
-  
-  const resetFilters = () => {
-    setFiltersState(defaultFilters);
-  };
   
   return (
     <TicketContext.Provider
@@ -140,6 +173,7 @@ export const TicketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         agentData,
         categoryData,
         statusData,
+        priorityData,
         monthlyAgentData,
         monthlyTeamData,
         weeklyData,

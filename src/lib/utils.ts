@@ -220,6 +220,22 @@ export function groupTicketsByStatus(tickets: Ticket[]): TicketAggregate[] {
 }
 
 /**
+ * Groups tickets by priority and returns an array of objects with priority labels and counts
+ */
+export const groupTicketsByPriority = (tickets: Ticket[]): TicketAggregate[] => {
+  const priorityCounts = tickets.reduce((acc, ticket) => {
+    const priority = ticket.priority || 'Unassigned';
+    acc[priority] = (acc[priority] || 0) + 1;
+    return acc;
+  }, {} as Record<string, number>);
+
+  return Object.entries(priorityCounts).map(([priority, count]) => ({
+    label: priority,
+    count
+  }));
+};
+
+/**
  * Generic function to group tickets by any property
  */
 export function groupTicketsBy(tickets: Ticket[], field: keyof Ticket): TicketAggregate[] {
