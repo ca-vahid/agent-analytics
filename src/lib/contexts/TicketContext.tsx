@@ -1,5 +1,5 @@
 import React, { createContext, useState, useContext, useEffect, useMemo } from 'react';
-import { Ticket, FilterOptions } from '../types';
+import { Ticket, FilterOptions, TicketAggregate } from '../types';
 import { 
   processTicketData, 
   filterTickets, 
@@ -8,6 +8,7 @@ import {
   groupTicketsByTeam,
   groupTicketsByAgent,
   groupTicketsByCategory,
+  groupTicketsByStatus,
   groupTicketsByMonthAndAgent,
   groupTicketsByMonthAndTeam,
   groupTicketsByWeek,
@@ -31,12 +32,14 @@ interface TicketContextType {
   uniqueAgents: string[];
   uniqueSources: string[];
   uniquePriorities: string[];
+  uniqueStatuses: string[];
   
   // Monthly aggregated data
   monthlyData: any[];
-  teamData: any[];
-  agentData: any[];
-  categoryData: any[];
+  teamData: TicketAggregate[];
+  agentData: TicketAggregate[];
+  categoryData: TicketAggregate[];
+  statusData: TicketAggregate[];
   monthlyAgentData: { [yearMonth: string]: { [agentName: string]: number } };
   monthlyTeamData: { [yearMonth: string]: { [teamName: string]: number } };
   
@@ -91,12 +94,14 @@ export const TicketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const uniqueAgents = useMemo(() => getUniqueValues(tickets, 'agentName'), [tickets]);
   const uniqueSources = useMemo(() => getUniqueValues(tickets, 'source'), [tickets]);
   const uniquePriorities = useMemo(() => getUniqueValues(tickets, 'priority'), [tickets]);
+  const uniqueStatuses = useMemo(() => getUniqueValues(tickets, 'status'), [tickets]);
   
   // Monthly aggregated data
   const monthlyData = useMemo(() => groupTicketsByMonth(filteredTickets), [filteredTickets]);
   const teamData = useMemo(() => groupTicketsByTeam(filteredTickets), [filteredTickets]);
   const agentData = useMemo(() => groupTicketsByAgent(filteredTickets), [filteredTickets]);
   const categoryData = useMemo(() => groupTicketsByCategory(filteredTickets), [filteredTickets]);
+  const statusData = useMemo(() => groupTicketsByStatus(filteredTickets), [filteredTickets]);
   const monthlyAgentData = useMemo(() => groupTicketsByMonthAndAgent(filteredTickets), [filteredTickets]);
   const monthlyTeamData = useMemo(() => groupTicketsByMonthAndTeam(filteredTickets), [filteredTickets]);
   
@@ -129,10 +134,12 @@ export const TicketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         uniqueAgents,
         uniqueSources,
         uniquePriorities,
+        uniqueStatuses,
         monthlyData,
         teamData,
         agentData,
         categoryData,
+        statusData,
         monthlyAgentData,
         monthlyTeamData,
         weeklyData,

@@ -1,6 +1,7 @@
 import React from 'react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
-import { useTickets, TicketStatusData } from '@/lib/contexts/TicketContext';
+import { useTickets } from '@/lib/contexts/TicketContext';
+import { TicketAggregate } from '@/lib/types';
 import { formatNumber } from '@/lib/utils';
 import ChartWrapper from './ChartWrapper';
 
@@ -29,8 +30,8 @@ const getStatusColor = (status: string) => {
 const StatusDistributionChart: React.FC = () => {
   const { statusData = [] } = useTickets();
   
-  const handlePieClick = (data: { name: string; value: number }) => {
-    const status = data.name;
+  const handlePieClick = (data: TicketAggregate) => {
+    const status = data.label;
     // Add your filter logic here
     console.log(`Setting filter for status: ${status}`);
   };
@@ -41,10 +42,10 @@ const StatusDistributionChart: React.FC = () => {
     // Create CSV content
     const csvContent = [
       ['Status', 'Count', 'Percentage'],
-      ...statusData.map((entry: TicketStatusData) => [
-        entry.name,
-        entry.value,
-        `${((entry.value / statusData.reduce((sum: number, item: TicketStatusData) => sum + item.value, 0)) * 100).toFixed(2)}%`
+      ...statusData.map((entry: TicketAggregate) => [
+        entry.label,
+        entry.count,
+        `${entry.percentage?.toFixed(2) ?? '0.00'}%`
       ]),
     ]
       .map((row) => row.join(','))
@@ -63,7 +64,7 @@ const StatusDistributionChart: React.FC = () => {
   };
 
   const getTotalCount = (): number => {
-    return statusData.reduce((sum: number, item: TicketStatusData) => sum + item.value, 0);
+    return statusData.reduce((sum: number, item: TicketAggregate) => sum + item.count, 0);
   };
 
   const chartContent = (
@@ -82,17 +83,20 @@ const StatusDistributionChart: React.FC = () => {
               labelLine={false}
               outerRadius={100}
               fill="#8884d8"
-              dataKey="value"
-              nameKey="name"
-              label={({ name, percent }: { name: string; percent: number }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+              dataKey="count"
+              nameKey="label"
+              label={({ label, percent }: { label: string; percent: number }) => `${label}: ${(percent * 100).toFixed(0)}%`}
               onClick={handlePieClick}
             >
-              {statusData.map((entry: TicketStatusData, index: number) => (
-                <Cell key={`cell-${index}`} fill={getStatusColor(entry.name)} />
+              {statusData.map((entry: TicketAggregate, index: number) => (
+                <Cell key={`cell-${index}`} fill={getStatusColor(entry.label)} />
               ))}
             </Pie>
             <Tooltip
-              formatter={(value: number) => [`${value} tickets (${((value / getTotalCount()) * 100).toFixed(2)}%)`, 'Count']}
+              formatter={(value: number, name: string, props: any) => [
+                `${value} tickets (${props.payload.percentage?.toFixed(2) ?? '0.00'}%)`,
+                'Count'
+              ]}
               contentStyle={{ 
                 backgroundColor: 'rgba(255, 255, 255, 0.9)',
                 border: '1px solid #e5e7eb',

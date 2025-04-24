@@ -7,6 +7,7 @@ export interface Ticket {
   subject: string;
   source: string;
   priority: string;
+  status: string;
   yearMonth?: string; // For aggregation
 }
 

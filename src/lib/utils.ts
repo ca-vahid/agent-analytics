@@ -34,6 +34,7 @@ export function processTicketData(data: any[]): Ticket[] {
       subject: row['Subject'] || row['subject'],
       source: row['Source'] || row['source'],
       priority: row['Priority'] || row['priority'],
+      status: row['Status'] || row['status'],
       yearMonth
     };
   });
@@ -209,6 +210,13 @@ export function groupTicketsByAgent(tickets: Ticket[]): TicketAggregate[] {
  */
 export function groupTicketsByCategory(tickets: Ticket[]): TicketAggregate[] {
   return groupTicketsBy(tickets, 'category');
+}
+
+/**
+ * Group tickets by status and count
+ */
+export function groupTicketsByStatus(tickets: Ticket[]): TicketAggregate[] {
+  return groupTicketsBy(tickets, 'status');
 }
 
 /**
