@@ -2,6 +2,22 @@ import { format, parseISO, startOfWeek, getISOWeek } from 'date-fns';
 import { Ticket, MonthlyTicketCount, TicketAggregate, FilterOptions } from './types';
 
 /**
+ * Format a date string into a readable format
+ * @param dateStr - The date string to format
+ * @param short - Whether to use short format (e.g., "Jan 1" vs "January 1, 2023")
+ */
+export function formatDate(dateStr: string, short: boolean = false): string {
+  try {
+    const date = typeof dateStr === 'string' 
+      ? parseISO(dateStr) 
+      : dateStr;
+    return format(date, short ? 'MMM d' : 'MMMM d, yyyy');
+  } catch (e) {
+    return 'Invalid Date';
+  }
+}
+
+/**
  * Processes raw ticket data from CSV and converts it to our normalized format
  */
 export function processTicketData(data: any[]): Ticket[] {
