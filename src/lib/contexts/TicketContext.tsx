@@ -213,7 +213,9 @@ function groupTicketsByDate(tickets: Ticket[]): TimeSeriesData[] {
     const date = ticket.createdDate.split('T')[0]; // Get just the date part
     const current = dateMap.get(date) || { created: 0, resolved: 0 };
     
-    if (ticket.status.toLowerCase() === 'resolved') {
+    // Safely check if status exists and is 'resolved'
+    const status = (ticket.status || '').toLowerCase();
+    if (status === 'resolved') {
       current.resolved++;
     }
     current.created++;
