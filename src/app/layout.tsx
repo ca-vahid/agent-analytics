@@ -1,6 +1,8 @@
 import "./globals.css";
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
+import { ThemeProvider } from "@/lib/contexts/ThemeContext";
+import { TicketProvider } from "@/lib/contexts/TicketContext";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -38,7 +40,11 @@ export default function RootLayout({
         <script dangerouslySetInnerHTML={setInitialColorMode()} />
       </head>
       <body className={`${inter.className} h-full bg-gray-50 dark:bg-gray-900 transition-colors duration-200`}>
-        {children}
+        <ThemeProvider>
+          <TicketProvider>
+            {children}
+          </TicketProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

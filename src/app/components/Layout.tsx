@@ -2,16 +2,18 @@ import React, { useState } from 'react';
 import Header from './Header';
 import FilterSidebar from './FilterSidebar';
 import Dashboard from './Dashboard';
-import { ThemeProvider } from '@/lib/contexts/ThemeContext';
-import { TicketProvider } from '@/lib/contexts/TicketContext';
+// Remove ThemeProvider and TicketProvider imports if they are not used elsewhere in this file
+// import { ThemeProvider } from '@/lib/contexts/ThemeContext'; 
+// import { TicketProvider } from '@/lib/contexts/TicketContext';
 import { ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
 
 const Layout: React.FC = () => {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   return (
-    <ThemeProvider>
-      <TicketProvider>
+    // Remove ThemeProvider and TicketProvider wrappers
+    // <ThemeProvider>
+    //   <TicketProvider>
         <div className="min-h-screen bg-gray-100 dark:bg-gray-900 flex flex-col">
           <Header />
           
@@ -44,8 +46,8 @@ const Layout: React.FC = () => {
             </div>
           </div>
         </div>
-      </TicketProvider>
-    </ThemeProvider>
+    //   </TicketProvider>
+    // </ThemeProvider>
   );
 };
 
