@@ -11,6 +11,12 @@ export interface Ticket {
   yearMonth?: string; // For aggregation
 }
 
+export interface TimeSeriesData {
+  date: string;
+  created: number;
+  resolved: number;
+}
+
 export interface TicketAggregate {
   label: string;
   count: number;

@@ -1,5 +1,5 @@
 import React, { createContext, useState, useContext, useEffect, useMemo } from 'react';
-import { Ticket, FilterOptions, TicketAggregate } from '../types';
+import { Ticket, FilterOptions, TicketAggregate, TimeSeriesData } from '../types';
 import { 
   processTicketData, 
   filterTickets, 
@@ -14,7 +14,8 @@ import {
   groupTicketsByMonthAndTeam,
   groupTicketsByWeek,
   groupTicketsByWeekAndAgent,
-  groupTicketsByWeekAndTeam
+  groupTicketsByWeekAndTeam,
+  extractYearMonth
 } from '../utils';
 
 interface TicketContextType {
@@ -49,6 +50,9 @@ interface TicketContextType {
   weeklyData: any[];
   weeklyAgentData: { [yearWeek: string]: { [agentName: string]: number } };
   weeklyTeamData: { [yearWeek: string]: { [teamName: string]: number } };
+
+  // Time series data
+  timeseriesData: TimeSeriesData[];
 }
 
 const defaultFilters: FilterOptions = {
@@ -151,6 +155,11 @@ export const TicketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const weeklyAgentData = useMemo(() => groupTicketsByWeekAndAgent(filteredTickets), [filteredTickets]);
   const weeklyTeamData = useMemo(() => groupTicketsByWeekAndTeam(filteredTickets), [filteredTickets]);
   
+  // Add timeseriesData calculation
+  const timeseriesData = useMemo(() => 
+    groupTicketsByDate(filteredTickets),
+  [filteredTickets]);
+  
   return (
     <TicketContext.Provider
       value={{
@@ -178,7 +187,8 @@ export const TicketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         monthlyTeamData,
         weeklyData,
         weeklyAgentData,
-        weeklyTeamData
+        weeklyTeamData,
+        timeseriesData
       }}
     >
       {children}
@@ -192,4 +202,30 @@ export const useTickets = () => {
     throw new Error('useTickets must be used within a TicketProvider');
   }
   return context;
-}; 
+};
+
+// Add this function after the other groupBy functions
+function groupTicketsByDate(tickets: Ticket[]): TimeSeriesData[] {
+  const dateMap = new Map<string, { created: number; resolved: number }>();
+
+  // Process tickets by date
+  tickets.forEach(ticket => {
+    const date = ticket.createdDate.split('T')[0]; // Get just the date part
+    const current = dateMap.get(date) || { created: 0, resolved: 0 };
+    
+    if (ticket.status.toLowerCase() === 'resolved') {
+      current.resolved++;
+    }
+    current.created++;
+    
+    dateMap.set(date, current);
+  });
+
+  // Convert to array and sort by date
+  return Array.from(dateMap.entries())
+    .map(([date, counts]) => ({
+      date,
+      ...counts
+    }))
+    .sort((a, b) => a.date.localeCompare(b.date));
+} 
