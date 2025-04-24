@@ -78,7 +78,7 @@ const CategoryDistributionChart: React.FC = () => {
     
     const otherCategories = sortedData.slice(MAX_CATEGORIES);
     const otherCount = otherCategories.reduce((sum, item) => sum + item.count, 0);
-    const otherPercentage = otherCategories.reduce((sum, item) => sum + item.percentage, 0);
+    const otherPercentage = otherCategories.reduce((sum, item) => sum + (item.percentage ?? 0), 0);
     
     return [
       ...topCategories,
