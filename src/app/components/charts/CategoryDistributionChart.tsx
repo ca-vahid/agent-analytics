@@ -1,3 +1,5 @@
+"use client";
+
 import React from 'react';
 import {
   BarChart,
@@ -20,6 +22,7 @@ const COLORS = {
   bars: '#22c55e', // green-500
   activeBars: '#16a34a', // green-600
   otherBar: '#94a3b8', // slate-400
+  unknownBar: '#cbd5e1', // slate-300
 };
 
 // Maximum number of categories to display individually
@@ -34,6 +37,7 @@ interface CategoryChartData {
   value: number;
   percentage: number;
   isOther?: boolean;
+  isUnknown?: boolean;
   originalName?: string; // To store the original name if truncated
 }
 
@@ -50,55 +54,75 @@ const CategoryDistributionChart: React.FC = () => {
   const processedData = React.useMemo(() => {
     if (!categoryData || categoryData.length === 0) return [] as CategoryChartData[];
     
-    // Sort by count in descending order
-    const sortedData = [...categoryData].sort((a, b) => b.count - a.count);
+    // Sort by count in descending order and handle Unknown specially
+    const validCategories = categoryData.filter(item => 
+      item.label.toLowerCase() !== 'unknown' && 
+      item.label.toLowerCase() !== 'unassigned'
+    );
     
-    if (sortedData.length <= MAX_CATEGORIES) {
-      return sortedData.map(item => {
+    // Find if there's an Unknown category
+    const unknownCategory = categoryData.find(item => 
+      item.label.toLowerCase() === 'unknown' || 
+      item.label.toLowerCase() === 'unassigned'
+    );
+    
+    // Sort valid categories by count
+    const sortedData = [...validCategories].sort((a, b) => b.count - a.count);
+    
+    let result = [] as CategoryChartData[];
+    
+    // Add top categories
+    const topCategories = sortedData.slice(0, unknownCategory ? MAX_CATEGORIES - 1 : MAX_CATEGORIES)
+      .map(item => {
         const name = truncateName(item.label);
         return {
           name,
           value: item.count,
-          percentage: item.percentage,
+          percentage: item.percentage || 0,
           originalName: name !== item.label ? item.label : undefined
         };
       }) as CategoryChartData[];
-    }
     
-    // Take top categories and create an "Other" category for the rest
-    const topCategories = sortedData.slice(0, MAX_CATEGORIES).map(item => {
-      const name = truncateName(item.label);
-      return {
-        name,
-        value: item.count,
-        percentage: item.percentage,
-        originalName: name !== item.label ? item.label : undefined
-      };
-    }) as CategoryChartData[];
+    result = [...topCategories];
     
-    const otherCategories = sortedData.slice(MAX_CATEGORIES);
-    const otherCount = otherCategories.reduce((sum, item) => sum + item.count, 0);
-    const otherPercentage = otherCategories.reduce((sum, item) => sum + (item.percentage ?? 0), 0);
-    
-    return [
-      ...topCategories,
-      {
+    // Handle "Other" category if needed
+    if (sortedData.length > (unknownCategory ? MAX_CATEGORIES - 1 : MAX_CATEGORIES)) {
+      const otherCategories = sortedData.slice(unknownCategory ? MAX_CATEGORIES - 1 : MAX_CATEGORIES);
+      const otherCount = otherCategories.reduce((sum, item) => sum + item.count, 0);
+      const otherPercentage = otherCategories.reduce((sum, item) => sum + (item.percentage || 0), 0);
+      
+      result.push({
         name: 'Other',
         value: otherCount,
         percentage: otherPercentage,
         isOther: true
-      }
-    ] as CategoryChartData[];
+      });
+    }
+    
+    // Add Unknown category at the end if it exists
+    if (unknownCategory) {
+      result.push({
+        name: 'Unknown',
+        value: unknownCategory.count,
+        percentage: unknownCategory.percentage || 0,
+        isUnknown: true
+      });
+    }
+    
+    return result;
   }, [categoryData]);
 
   const handleBarClick = (data: CategoryChartData) => {
-    if (data && data.name && !data.isOther) {
+    if (data && data.name && !data.isOther && !data.isUnknown) {
       // Use original name if it exists
       const categoryName = data.originalName || data.name;
       setFilters({ categories: [categoryName] });
     } else if (data && data.isOther) {
       // Maybe show a modal with all other categories in the future
       console.log('Clicked on Other category');
+    } else if (data && data.isUnknown) {
+      // Filter by Unknown category
+      setFilters({ categories: ['Unknown'] });
     }
   };
   
@@ -191,7 +215,11 @@ const CategoryDistributionChart: React.FC = () => {
               {processedData.map((entry, index) => (
                 <Cell 
                   key={`cell-${index}`} 
-                  fill={entry.isOther ? COLORS.otherBar : COLORS.bars} 
+                  fill={
+                    entry.isUnknown 
+                      ? COLORS.unknownBar 
+                      : (entry.isOther ? COLORS.otherBar : COLORS.bars)
+                  } 
                 />
               ))}
             </Bar>
@@ -205,7 +233,7 @@ const CategoryDistributionChart: React.FC = () => {
     <ChartWrapper 
       title="Tickets by Category" 
       downloadAction={downloadCSV}
-      footer="Click on a bar to filter by that category. Top 15 categories shown."
+      footer="Click on a bar to filter by that category. Most frequent categories shown."
     >
       {chartContent}
     </ChartWrapper>
