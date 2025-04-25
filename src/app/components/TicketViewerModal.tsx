@@ -43,15 +43,22 @@ const TicketViewerModal: React.FC<TicketViewerModalProps> = ({
     if (!searchTerm.trim()) return tickets;
     
     const lowercasedSearch = searchTerm.toLowerCase();
-    return tickets.filter(ticket => 
-      ticket.id.toLowerCase().includes(lowercasedSearch) ||
-      ticket.subject.toLowerCase().includes(lowercasedSearch) ||
-      ticket.agentName.toLowerCase().includes(lowercasedSearch) ||
-      ticket.status.toLowerCase().includes(lowercasedSearch) ||
-      ticket.category.toLowerCase().includes(lowercasedSearch) ||
-      ticket.group.toLowerCase().includes(lowercasedSearch) ||
-      ticket.priority.toLowerCase().includes(lowercasedSearch)
-    );
+    return tickets.filter(ticket => {
+      // Helper to safely check and search a field
+      const checkField = (fieldValue: string | undefined | null): boolean => {
+        return !!fieldValue && fieldValue.toLowerCase().includes(lowercasedSearch);
+      }
+      
+      return (
+        checkField(ticket.id) ||
+        checkField(ticket.subject) ||
+        checkField(ticket.agentName) ||
+        checkField(ticket.status) ||
+        checkField(ticket.category) ||
+        checkField(ticket.group) ||
+        checkField(ticket.priority)
+      );
+    });
   }, [tickets, searchTerm]);
 
   // Sort tickets
