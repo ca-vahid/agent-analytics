@@ -1,4 +1,4 @@
-import React, { useState, Fragment } from 'react';
+import React, { useState, Fragment, useEffect } from 'react';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 import { useTickets } from '@/lib/contexts/TicketContext';
@@ -302,6 +302,11 @@ const FilterSidebar: React.FC<FilterSidebarProps> = ({ isCollapsed = false, onTo
   } = useTickets();
   
   const [showUploader, setShowUploader] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   const handleDateRangeChange = (dates: [Date | null, Date | null]) => {
     setFilters({ dateRange: dates });
@@ -331,7 +336,7 @@ const FilterSidebar: React.FC<FilterSidebarProps> = ({ isCollapsed = false, onTo
           <h2 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center">
             <AdjustmentsHorizontalIcon className="h-5 w-5 mr-2 text-blue-500" />
             Filters
-            {activeFiltersCount > 0 && (
+            {isMounted && activeFiltersCount > 0 && (
               <span className="ml-2 inline-flex items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900 px-2 py-0.5 text-xs font-medium text-blue-800 dark:text-blue-300">
                 {activeFiltersCount}
               </span>
