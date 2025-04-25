@@ -26,6 +26,12 @@ const TicketViewerModal: React.FC<TicketViewerModalProps> = ({
     key: 'createdDate',
     direction: 'desc'
   });
+  const [isMounted, setIsMounted] = useState(false);
+
+  // Set mounted state after initial render
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   // Reset pagination when tickets change
   useEffect(() => {
@@ -106,7 +112,9 @@ const TicketViewerModal: React.FC<TicketViewerModalProps> = ({
       <div className="relative w-full max-w-7xl bg-white dark:bg-gray-800 rounded-lg shadow-xl max-h-[90vh] flex flex-col overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b dark:border-gray-700">
-          <h2 className="text-xl font-semibold text-gray-800 dark:text-white">{title} ({filteredTickets.length} tickets)</h2>
+          <h2 className="text-xl font-semibold text-gray-800 dark:text-white">
+            {title} {isMounted && `(${filteredTickets.length} tickets)`}
+          </h2>
           <button
             onClick={onClose}
             className="p-1 rounded-full text-gray-600 hover:text-gray-800 dark:text-gray-400 dark:hover:text-white focus:outline-none"
