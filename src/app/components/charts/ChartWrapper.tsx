@@ -2,7 +2,7 @@
 
 import React, { useState, Fragment, ReactNode, useEffect } from 'react';
 import { Transition, Dialog } from '@headlessui/react';
-import { XMarkIcon, ArrowsPointingOutIcon } from '@heroicons/react/24/outline';
+import { XMarkIcon } from '@heroicons/react/24/outline';
 
 interface ChartWrapperProps {
   title: string;
@@ -53,7 +53,9 @@ const ChartWrapper: React.FC<ChartWrapperProps> = ({
               className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
               title="View fullscreen"
             >
-              <ArrowsPointingOutIcon className="h-5 w-5" />
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 3.75v4.5m0-4.5h4.5m9 0h4.5m0 0v4.5m0-4.5L13.5 9m-9 9h4.5m0 0v4.5m0-4.5L13.5 15" />
+              </svg>
             </button>
             
             {downloadAction && (
