@@ -54,25 +54,38 @@ const CategoryDistributionChart: React.FC = () => {
   const processedData = React.useMemo(() => {
     if (!categoryData || categoryData.length === 0) return [] as CategoryChartData[];
     
-    // Sort by count in descending order and handle Unknown specially
+    // 1. Handle 'Unknown' and 'Unassigned' categories - these are tickets with no category assigned
+    const unknownCategories = categoryData.filter(item => 
+      item.label.toLowerCase() === 'unknown' || 
+      item.label.toLowerCase() === 'unassigned'
+    );
+    
+    // Calculate total for Unknown
+    const unknownCount = unknownCategories.reduce((sum, item) => sum + item.count, 0);
+    const unknownPercentage = unknownCategories.reduce((sum, item) => sum + (item.percentage || 0), 0);
+    
+    // 2. Handle all valid categories (not unknown/unassigned)
     const validCategories = categoryData.filter(item => 
       item.label.toLowerCase() !== 'unknown' && 
       item.label.toLowerCase() !== 'unassigned'
     );
     
-    // Find if there's an Unknown category
-    const unknownCategory = categoryData.find(item => 
-      item.label.toLowerCase() === 'unknown' || 
-      item.label.toLowerCase() === 'unassigned'
+    // 3. Handle the special case where "Other" is an actual category in the data
+    // First, separate any categories actually named "Other" from the rest
+    const actualOtherCategory = validCategories.find(item => 
+      item.label.toLowerCase() === 'other'
     );
     
-    // Sort valid categories by count
-    const sortedData = [...validCategories].sort((a, b) => b.count - a.count);
+    // Get all categories except those named "Other" (we'll handle that separately)
+    const categoriesExcludingOther = validCategories.filter(item => 
+      item.label.toLowerCase() !== 'other'
+    );
     
-    let result = [] as CategoryChartData[];
+    // 4. Sort remaining categories by count (descending)
+    const sortedCategories = [...categoriesExcludingOther].sort((a, b) => b.count - a.count);
     
-    // Add top categories
-    const topCategories = sortedData.slice(0, unknownCategory ? MAX_CATEGORIES - 1 : MAX_CATEGORIES)
+    // 5. Take top N categories
+    const topCategories = sortedCategories.slice(0, MAX_CATEGORIES)
       .map(item => {
         const name = truncateName(item.label);
         return {
@@ -83,28 +96,43 @@ const CategoryDistributionChart: React.FC = () => {
         };
       }) as CategoryChartData[];
     
-    result = [...topCategories];
+    // Start building result with top categories
+    let result = [...topCategories];
     
-    // Handle "Other" category if needed
-    if (sortedData.length > (unknownCategory ? MAX_CATEGORIES - 1 : MAX_CATEGORIES)) {
-      const otherCategories = sortedData.slice(unknownCategory ? MAX_CATEGORIES - 1 : MAX_CATEGORIES);
+    // 6. Combine less frequent categories into a calculated "Other" group
+    if (sortedCategories.length > MAX_CATEGORIES) {
+      const otherCategories = sortedCategories.slice(MAX_CATEGORIES);
       const otherCount = otherCategories.reduce((sum, item) => sum + item.count, 0);
       const otherPercentage = otherCategories.reduce((sum, item) => sum + (item.percentage || 0), 0);
       
+      // Only add calculated "Other" if there are actually categories to group
+      if (otherCount > 0) {
+        result.push({
+          name: 'Less Frequent Categories',  // Rename to avoid confusion with an actual "Other" category
+          value: otherCount,
+          percentage: otherPercentage,
+          isOther: true
+        });
+      }
+    }
+    
+    // 7. If there's an actual "Other" category in the original data, add it separately
+    // (this ensures it's never grouped with the calculated "Other")
+    if (actualOtherCategory) {
       result.push({
-        name: 'Other',
-        value: otherCount,
-        percentage: otherPercentage,
-        isOther: true
+        name: 'Other',  // This is the actual category name from the data
+        value: actualOtherCategory.count,
+        percentage: actualOtherCategory.percentage || 0,
+        // Don't mark this as isOther: true, so it gets the regular green color
       });
     }
     
-    // Add Unknown category at the end if it exists
-    if (unknownCategory) {
+    // 8. Add Unknown category at the end if it exists
+    if (unknownCount > 0) {
       result.push({
         name: 'Unknown',
-        value: unknownCategory.count,
-        percentage: unknownCategory.percentage || 0,
+        value: unknownCount,
+        percentage: unknownPercentage,
         isUnknown: true
       });
     }
@@ -119,7 +147,7 @@ const CategoryDistributionChart: React.FC = () => {
       setFilters({ categories: [categoryName] });
     } else if (data && data.isOther) {
       // Maybe show a modal with all other categories in the future
-      console.log('Clicked on Other category');
+      console.log('Clicked on Less Frequent Categories group');
     } else if (data && data.isUnknown) {
       // Filter by Unknown category
       setFilters({ categories: ['Unknown'] });
@@ -185,6 +213,11 @@ const CategoryDistributionChart: React.FC = () => {
               }}
               labelFormatter={(label) => {
                 const entry = processedData.find(item => item.name === label);
+                if (entry?.isOther) {
+                  return 'Less Frequent Categories (Combined)';
+                } else if (entry?.isUnknown) {
+                  return 'Unknown - Tickets with no category assigned';
+                }
                 return `Category: ${entry?.originalName || label}`;
               }}
               contentStyle={{ 
@@ -233,7 +266,25 @@ const CategoryDistributionChart: React.FC = () => {
     <ChartWrapper 
       title="Tickets by Category" 
       downloadAction={downloadCSV}
-      footer="Click on a bar to filter by that category. Most frequent categories shown."
+      footer={
+        <div className="text-sm space-y-1">
+          <p>Click on a bar to filter by that category. Top {MAX_CATEGORIES} most frequent categories shown.</p>
+          <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-500">
+            <div className="flex items-center">
+              <span className="inline-block w-3 h-3 mr-1" style={{backgroundColor: COLORS.bars}}></span>
+              <span>Individual categories</span>
+            </div>
+            <div className="flex items-center">
+              <span className="inline-block w-3 h-3 mr-1" style={{backgroundColor: COLORS.otherBar}}></span>
+              <span>Less Frequent Categories (combined)</span>
+            </div>
+            <div className="flex items-center">
+              <span className="inline-block w-3 h-3 mr-1" style={{backgroundColor: COLORS.unknownBar}}></span>
+              <span>Unknown (no category assigned)</span>
+            </div>
+          </div>
+        </div>
+      }
     >
       {chartContent}
     </ChartWrapper>
