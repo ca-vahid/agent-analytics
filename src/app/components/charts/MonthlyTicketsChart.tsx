@@ -1,4 +1,6 @@
-import React, { useState, useMemo, useEffect } from 'react';
+"use client";
+
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import {
   BarChart,
   Bar,

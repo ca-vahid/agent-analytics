@@ -1,4 +1,6 @@
-import React, { useState } from 'react';
+"use client";
+
+import React, { useState, useContext, useEffect } from 'react';
 import {
   LineChart,
   Line,
@@ -18,6 +20,31 @@ type TimeRange = '7d' | '30d' | '90d' | '1y' | 'all';
 const TimeSeriesChart: React.FC = () => {
   const { timeseriesData } = useTickets();
   const [timeRange, setTimeRange] = useState<TimeRange>('30d');
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  
+  // Listen for fullscreen changes from the parent ChartWrapper
+  // We'll use a simple trick with ResizeObserver to detect when we're in fullscreen
+  const chartContainerRef = React.useRef<HTMLDivElement>(null);
+  
+  useEffect(() => {
+    if (!chartContainerRef.current) return;
+    
+    const observer = new ResizeObserver(entries => {
+      for (const entry of entries) {
+        // Check if the element's width is significantly larger than normal
+        // This would indicate we're in fullscreen mode
+        setIsFullscreen(entry.contentRect.width > 1000);
+      }
+    });
+    
+    observer.observe(chartContainerRef.current);
+    
+    return () => {
+      if (chartContainerRef.current) {
+        observer.unobserve(chartContainerRef.current);
+      }
+    };
+  }, []);
 
   // Filter data based on selected time range
   const filteredData = React.useMemo(() => {
@@ -98,56 +125,71 @@ const TimeSeriesChart: React.FC = () => {
 
   // Chart content
   const chartContent = (
-    <>
+    <div ref={chartContainerRef} className="w-full h-full">
       <TimeRangeSelector />
       {filteredData.length === 0 ? (
         <div className="flex-grow flex items-center justify-center">
           <p className="text-gray-500 dark:text-gray-400">No data available for the selected time range</p>
         </div>
       ) : (
-        <ResponsiveContainer width="100%" height={300}>
+        <ResponsiveContainer width="100%" height={isFullscreen ? 600 : 300}>
           <LineChart
             data={filteredData}
-            margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+            margin={
+              isFullscreen 
+                ? { top: 10, right: 60, left: 20, bottom: 10 } 
+                : { top: 5, right: 30, left: 20, bottom: 5 }
+            }
           >
             <CartesianGrid strokeDasharray="3 3" />
             <XAxis 
               dataKey="date" 
               tickFormatter={(tick) => formatDate(tick, true)}
-              minTickGap={30}
+              minTickGap={isFullscreen ? 15 : 30}
+              tick={{ fontSize: isFullscreen ? 14 : 12 }}
             />
-            <YAxis />
+            <YAxis 
+              tick={{ fontSize: isFullscreen ? 14 : 12 }}
+              width={isFullscreen ? 60 : undefined}
+            />
             <Tooltip 
               formatter={(value, name) => [formatNumber(value as number), name === 'created' ? 'Created Tickets' : 'Resolved Tickets']}
               labelFormatter={(label) => formatDate(label as string)}
               contentStyle={{ 
-                backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                backgroundColor: 'rgba(255, 255, 255, 0.95)',
                 border: '1px solid #e5e7eb',
                 borderRadius: '0.375rem',
-                boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)'
+                boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
+                fontSize: isFullscreen ? '1rem' : '0.875rem',
+                padding: isFullscreen ? '0.75rem' : '0.5rem'
               }}
             />
-            <Legend />
+            <Legend 
+              wrapperStyle={{
+                fontSize: isFullscreen ? '1rem' : '0.875rem',
+                paddingTop: isFullscreen ? '1rem' : '0.5rem'
+              }}
+            />
             <Line
               type="monotone"
               dataKey="created"
               stroke="#3b82f6"
-              strokeWidth={2}
-              activeDot={{ r: 6 }}
+              strokeWidth={isFullscreen ? 3 : 2}
+              activeDot={{ r: isFullscreen ? 8 : 6 }}
               name="Created Tickets"
             />
             <Line
               type="monotone"
               dataKey="resolved"
               stroke="#10b981"
-              strokeWidth={2}
-              activeDot={{ r: 6 }}
+              strokeWidth={isFullscreen ? 3 : 2}
+              activeDot={{ r: isFullscreen ? 8 : 6 }}
               name="Resolved Tickets"
             />
           </LineChart>
         </ResponsiveContainer>
       )}
-    </>
+    </div>
   );
 
   return (

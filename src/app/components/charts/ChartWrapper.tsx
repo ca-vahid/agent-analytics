@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, Fragment, ReactNode } from 'react';
+import React, { useState, Fragment, ReactNode, useEffect } from 'react';
 import { Transition, Dialog } from '@headlessui/react';
 import { XMarkIcon, ArrowsPointingOutIcon } from '@heroicons/react/24/outline';
 
@@ -20,6 +20,26 @@ const ChartWrapper: React.FC<ChartWrapperProps> = ({
   extraControls
 }) => {
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [screenSize, setScreenSize] = useState({ width: 0, height: 0 });
+
+  // Track screen size for responsive adjustments
+  useEffect(() => {
+    const handleResize = () => {
+      setScreenSize({
+        width: window.innerWidth,
+        height: window.innerHeight
+      });
+    };
+
+    // Set initial size
+    handleResize();
+
+    // Add event listener
+    window.addEventListener('resize', handleResize);
+    
+    // Clean up
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   return (
     <>
@@ -67,7 +87,7 @@ const ChartWrapper: React.FC<ChartWrapperProps> = ({
         )}
       </div>
       
-      {/* Fullscreen Modal */}
+      {/* Improved Fullscreen Modal */}
       <Transition appear show={isFullscreen} as={Fragment}>
         <Dialog 
           as="div" 
@@ -83,11 +103,11 @@ const ChartWrapper: React.FC<ChartWrapperProps> = ({
             leaveFrom="opacity-100"
             leaveTo="opacity-0"
           >
-            <div className="fixed inset-0 bg-black/30 backdrop-blur-sm" />
+            <div className="fixed inset-0 bg-black/50 backdrop-blur-sm" />
           </Transition.Child>
 
           <div className="fixed inset-0 overflow-y-auto">
-            <div className="flex min-h-full items-center justify-center p-4 text-center">
+            <div className="flex min-h-full items-center justify-center text-center">
               <Transition.Child
                 as={Fragment}
                 enter="ease-out duration-300"
@@ -97,7 +117,7 @@ const ChartWrapper: React.FC<ChartWrapperProps> = ({
                 leaveFrom="opacity-100 scale-100"
                 leaveTo="opacity-0 scale-95"
               >
-                <Dialog.Panel className="w-full max-w-6xl h-[80vh] transform overflow-hidden rounded-2xl bg-white dark:bg-gray-800 p-6 text-left align-middle shadow-xl transition-all">
+                <Dialog.Panel className="w-[95vw] h-[90vh] transform overflow-hidden rounded-xl bg-white dark:bg-gray-800 p-6 text-left align-middle shadow-xl transition-all">
                   <div className="flex justify-between items-center mb-4">
                     <Dialog.Title
                       as="h3"
@@ -133,7 +153,7 @@ const ChartWrapper: React.FC<ChartWrapperProps> = ({
                     </div>
                   )}
                   
-                  <div className="h-[calc(100%-6rem)] select-none">
+                  <div className="h-[calc(100%-4rem)] select-none" style={{ maxHeight: 'calc(90vh - 6rem)' }}>
                     {children}
                   </div>
                   
