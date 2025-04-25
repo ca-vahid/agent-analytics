@@ -1,13 +1,9 @@
+'use client';
+
 import "./globals.css";
-import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 
 const inter = Inter({ subsets: ["latin"] });
-
-export const metadata: Metadata = {
-  title: "Ticket Analytics",
-  description: "Visualize and analyze support ticket data",
-};
 
 // Add a script that ensures no flash of wrong theme
 function setInitialColorMode() {
@@ -35,6 +31,8 @@ export default function RootLayout({
   return (
     <html lang="en" className="h-full">
       <head>
+        <title>Ticket Analytics</title>
+        <meta name="description" content="Visualize and analyze support ticket data" />
         <script dangerouslySetInnerHTML={setInitialColorMode()} />
       </head>
       <body className={`${inter.className} h-full bg-gray-50 dark:bg-gray-900 transition-colors duration-200`}>
