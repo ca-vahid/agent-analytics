@@ -8,7 +8,7 @@ interface ChartWrapperProps {
   title: string;
   children: ReactNode;
   downloadAction?: () => void;
-  footer?: string;
+  footer?: ReactNode;
   extraControls?: ReactNode;
 }
 

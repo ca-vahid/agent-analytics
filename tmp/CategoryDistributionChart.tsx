@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from 'react';
+import React from 'react';
 import {
   BarChart,
   Bar,
@@ -16,7 +16,6 @@ import {
 import { useTickets } from '@/lib/contexts/TicketContext';
 import { formatNumber } from '@/lib/utils';
 import ChartWrapper from './ChartWrapper';
-import TicketViewerModal from '../TicketViewerModal';
 
 // Colors for the chart
 const COLORS = {
@@ -49,10 +48,7 @@ const truncateName = (name: string): string => {
 };
 
 const CategoryDistributionChart: React.FC = () => {
-  const { categoryData, tickets } = useTickets();
-  const [modalVisible, setModalVisible] = useState(false);
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
-  const [ticketsToView, setTicketsToView] = useState<any[]>([]);
+  const { categoryData, setFilters } = useTickets();
 
   // Process data - take top categories and group the rest as "Other"
   const processedData = React.useMemo(() => {
@@ -105,9 +101,7 @@ const CategoryDistributionChart: React.FC = () => {
           name: 'Less Frequent Categories',  // Renamed to avoid confusion
           value: otherCount,
           percentage: otherPercentage,
-          isOther: true,
-          // Store the original category names for the modal
-          originalName: otherCategories.map(cat => cat.label).join(',')
+          isOther: true
         });
       }
     }
@@ -126,53 +120,17 @@ const CategoryDistributionChart: React.FC = () => {
   }, [categoryData]);
 
   const handleBarClick = (data: CategoryChartData) => {
-    if (!data) return;
-    
-    let categoryToFilter = '';
-    let modalTitle = '';
-    let ticketsToShow = [];
-    
-    if (data.isUnknown) {
-      // Handle tickets with no category
-      categoryToFilter = '';
-      modalTitle = 'Tickets with no Categories';
-      ticketsToShow = tickets.filter(ticket => 
-        !ticket.category || 
-        ticket.category.toLowerCase() === 'unknown' || 
-        ticket.category.toLowerCase() === 'unassigned'
-      );
-    } else if (data.isOther) {
-      // Handle "Less Frequent Categories"
-      // This will show all tickets that aren't in the top categories or "unknown"
-      modalTitle = 'Less Frequent Categories';
-      
-      // Get the list of top category names
-      const topCategoryNames = processedData
-        .filter(item => !item.isOther && !item.isUnknown)
-        .map(item => item.originalName || item.name);
-      
-      // Find tickets that aren't in the top categories and have a category
-      ticketsToShow = tickets.filter(ticket => 
-        ticket.category && 
-        ticket.category.toLowerCase() !== 'unknown' &&
-        ticket.category.toLowerCase() !== 'unassigned' &&
-        !topCategoryNames.includes(ticket.category)
-      );
-    } else {
-      // Regular category
-      categoryToFilter = data.originalName || data.name;
-      modalTitle = `Category: ${categoryToFilter}`;
-      ticketsToShow = tickets.filter(ticket => ticket.category === categoryToFilter);
+    if (data && data.name && !data.isOther && !data.isUnknown) {
+      // Use original name if it exists
+      const categoryName = data.originalName || data.name;
+      setFilters({ categories: [categoryName] });
+    } else if (data && data.isOther) {
+      // Maybe show a modal with all other categories in the future
+      console.log('Clicked on Less Frequent Categories group');
+    } else if (data && data.isUnknown) {
+      // Filter by Unknown category
+      setFilters({ categories: ['Unknown'] });
     }
-    
-    setSelectedCategory(modalTitle);
-    setTicketsToView(ticketsToShow);
-    setModalVisible(true);
-  };
-  
-  const closeModal = () => {
-    setModalVisible(false);
-    setSelectedCategory(null);
   };
   
   const downloadCSV = () => {
@@ -280,14 +238,6 @@ const CategoryDistributionChart: React.FC = () => {
           </BarChart>
         </ResponsiveContainer>
       )}
-
-      {/* Ticket Viewer Modal */}
-      <TicketViewerModal 
-        isOpen={modalVisible}
-        onClose={closeModal}
-        tickets={ticketsToView}
-        title={selectedCategory || 'Tickets'}
-      />
     </>
   );
 
@@ -297,7 +247,7 @@ const CategoryDistributionChart: React.FC = () => {
       downloadAction={downloadCSV}
       footer={
         <div className="text-sm space-y-1">
-          <p>Click on a bar to view detailed tickets for that category. Top {MAX_CATEGORIES} most frequent categories shown.</p>
+          <p>Click on a bar to filter by that category. Top {MAX_CATEGORIES} most frequent categories shown.</p>
           <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-500">
             <div className="flex items-center">
               <span className="inline-block w-3 h-3 mr-1" style={{backgroundColor: COLORS.bars}}></span>
