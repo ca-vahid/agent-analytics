@@ -70,21 +70,11 @@ const CategoryDistributionChart: React.FC = () => {
       item.label.toLowerCase() !== 'unassigned'
     );
     
-    // 3. Handle the special case where "Other" is an actual category in the data
-    // First, separate any categories actually named "Other" from the rest
-    const actualOtherCategory = validCategories.find(item => 
-      item.label.toLowerCase() === 'other'
-    );
+    // 3. Handle all categories including "Other" - no special treatment for "Other" now
+    // Sort all valid categories by count (descending)
+    const sortedCategories = [...validCategories].sort((a, b) => b.count - a.count);
     
-    // Get all categories except those named "Other" (we'll handle that separately)
-    const categoriesExcludingOther = validCategories.filter(item => 
-      item.label.toLowerCase() !== 'other'
-    );
-    
-    // 4. Sort remaining categories by count (descending)
-    const sortedCategories = [...categoriesExcludingOther].sort((a, b) => b.count - a.count);
-    
-    // 5. Take top N categories
+    // 4. Take top N categories
     const topCategories = sortedCategories.slice(0, MAX_CATEGORIES)
       .map(item => {
         const name = truncateName(item.label);
@@ -99,7 +89,7 @@ const CategoryDistributionChart: React.FC = () => {
     // Start building result with top categories
     let result = [...topCategories];
     
-    // 6. Combine less frequent categories into a calculated "Other" group
+    // 5. Combine less frequent categories into a calculated "Less Frequent Categories" group
     if (sortedCategories.length > MAX_CATEGORIES) {
       const otherCategories = sortedCategories.slice(MAX_CATEGORIES);
       const otherCount = otherCategories.reduce((sum, item) => sum + item.count, 0);
@@ -108,7 +98,7 @@ const CategoryDistributionChart: React.FC = () => {
       // Only add calculated "Other" if there are actually categories to group
       if (otherCount > 0) {
         result.push({
-          name: 'Less Frequent Categories',  // Rename to avoid confusion with an actual "Other" category
+          name: 'Less Frequent Categories',  // Renamed to avoid confusion
           value: otherCount,
           percentage: otherPercentage,
           isOther: true
@@ -116,21 +106,10 @@ const CategoryDistributionChart: React.FC = () => {
       }
     }
     
-    // 7. If there's an actual "Other" category in the original data, add it separately
-    // (this ensures it's never grouped with the calculated "Other")
-    if (actualOtherCategory) {
-      result.push({
-        name: 'Other',  // This is the actual category name from the data
-        value: actualOtherCategory.count,
-        percentage: actualOtherCategory.percentage || 0,
-        // Don't mark this as isOther: true, so it gets the regular green color
-      });
-    }
-    
-    // 8. Add Unknown category at the end if it exists
+    // 6. Add Unknown category at the end if it exists (renamed to "Tickets with no Categories")
     if (unknownCount > 0) {
       result.push({
-        name: 'Unknown',
+        name: 'Tickets with no Categories',  // Renamed from "Unknown"
         value: unknownCount,
         percentage: unknownPercentage,
         isUnknown: true
@@ -216,7 +195,7 @@ const CategoryDistributionChart: React.FC = () => {
                 if (entry?.isOther) {
                   return 'Less Frequent Categories (Combined)';
                 } else if (entry?.isUnknown) {
-                  return 'Unknown - Tickets with no category assigned';
+                  return 'Tickets with no Categories';
                 }
                 return `Category: ${entry?.originalName || label}`;
               }}
@@ -280,7 +259,7 @@ const CategoryDistributionChart: React.FC = () => {
             </div>
             <div className="flex items-center">
               <span className="inline-block w-3 h-3 mr-1" style={{backgroundColor: COLORS.unknownBar}}></span>
-              <span>Unknown (no category assigned)</span>
+              <span>Tickets with no Categories</span>
             </div>
           </div>
         </div>
