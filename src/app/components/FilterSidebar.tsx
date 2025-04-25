@@ -357,7 +357,8 @@ const FilterSidebar: React.FC<FilterSidebarProps> = ({ isCollapsed = false, onTo
             )}
           </button>
           
-          {activeFiltersCount > 0 && !isCollapsed && (
+          {/* Conditionally render based on isMounted */}
+          {isMounted && activeFiltersCount > 0 && !isCollapsed && (
             <button 
               onClick={resetFilters}
               className="p-1.5 rounded-full bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
