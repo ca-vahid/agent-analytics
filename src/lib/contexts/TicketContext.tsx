@@ -67,10 +67,10 @@ const defaultFilters: FilterOptions = {
 const TicketContext = createContext<TicketContextType | undefined>(undefined);
 
 export const TicketProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  // Initialize state from localStorage if available
+  // Initialize state from sessionStorage instead of localStorage
   const [rawData, setRawDataState] = useState<any[]>(() => {
     if (typeof window !== 'undefined') {
-      const savedData = localStorage.getItem('ticketRawData');
+      const savedData = sessionStorage.getItem('ticketRawData');
       return savedData ? JSON.parse(savedData) : [];
     }
     return [];
@@ -78,7 +78,7 @@ export const TicketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const [filters, setFiltersState] = useState<FilterOptions>(() => {
     if (typeof window !== 'undefined') {
-      const savedFilters = localStorage.getItem('ticketFilters');
+      const savedFilters = sessionStorage.getItem('ticketFilters');
       return savedFilters ? JSON.parse(savedFilters) : defaultFilters;
     }
     return defaultFilters;
@@ -88,11 +88,11 @@ export const TicketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [filteredTickets, setFilteredTickets] = useState<Ticket[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   
-  // Save to localStorage when data changes
+  // Save to sessionStorage when data changes
   const setRawData = (data: any[]) => {
     setRawDataState(data);
     if (typeof window !== 'undefined') {
-      localStorage.setItem('ticketRawData', JSON.stringify(data));
+      sessionStorage.setItem('ticketRawData', JSON.stringify(data));
     }
   };
 
@@ -100,14 +100,14 @@ export const TicketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     const updatedFilters = { ...filters, ...newFilters };
     setFiltersState(updatedFilters);
     if (typeof window !== 'undefined') {
-      localStorage.setItem('ticketFilters', JSON.stringify(updatedFilters));
+      sessionStorage.setItem('ticketFilters', JSON.stringify(updatedFilters));
     }
   };
   
   const resetFilters = () => {
     setFiltersState(defaultFilters);
     if (typeof window !== 'undefined') {
-      localStorage.setItem('ticketFilters', JSON.stringify(defaultFilters));
+      sessionStorage.setItem('ticketFilters', JSON.stringify(defaultFilters));
     }
   };
   
