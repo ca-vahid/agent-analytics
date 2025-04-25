@@ -328,6 +328,38 @@ const FilterSidebar: React.FC<FilterSidebarProps> = ({ isCollapsed = false, onTo
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
   };
 
+  // Prevent hydration errors by using a client-only div wrapper
+  if (!isMounted) {
+    return (
+      <div className={`w-full h-full bg-gray-50 dark:bg-gray-800/50 backdrop-blur-sm overflow-hidden flex flex-col transition-all duration-300`}>
+        <div className="flex items-center justify-between p-4 md:mb-2">
+          {!isCollapsed && (
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center">
+              <AdjustmentsHorizontalIcon className="h-5 w-5 mr-2 text-blue-500" />
+              Filters
+            </h2>
+          )}
+          
+          <div className="flex space-x-1">
+            <button 
+              onClick={onToggle}
+              className="md:hidden p-1.5 rounded-md bg-white dark:bg-gray-700 text-gray-600 dark:text-gray-300 shadow-sm"
+            >
+              {isCollapsed ? (
+                <ChevronRightIcon className="h-4 w-4" />
+              ) : (
+                <ChevronLeftIcon className="h-4 w-4" />
+              )}
+            </button>
+          </div>
+        </div>
+        
+        {/* Static placeholder content for server rendering */}
+        <div className={`overflow-y-auto space-y-4 flex-grow scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-600 scrollbar-track-transparent ${isCollapsed ? 'px-2' : 'px-4'}`}></div>
+      </div>
+    );
+  }
+
   return (
     <div className={`w-full h-full bg-gray-50 dark:bg-gray-800/50 backdrop-blur-sm overflow-hidden flex flex-col transition-all duration-300`}>
       {/* Header with toggle button for mobile */}
@@ -336,7 +368,7 @@ const FilterSidebar: React.FC<FilterSidebarProps> = ({ isCollapsed = false, onTo
           <h2 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center">
             <AdjustmentsHorizontalIcon className="h-5 w-5 mr-2 text-blue-500" />
             Filters
-            {isMounted && activeFiltersCount > 0 && (
+            {activeFiltersCount > 0 && (
               <span className="ml-2 inline-flex items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900 px-2 py-0.5 text-xs font-medium text-blue-800 dark:text-blue-300">
                 {activeFiltersCount}
               </span>
@@ -357,8 +389,8 @@ const FilterSidebar: React.FC<FilterSidebarProps> = ({ isCollapsed = false, onTo
             )}
           </button>
           
-          {/* Conditionally render based on isMounted */}
-          {isMounted && activeFiltersCount > 0 && !isCollapsed && (
+          {/* Conditionally render reset button */}
+          {activeFiltersCount > 0 && !isCollapsed && (
             <button 
               onClick={resetFilters}
               className="p-1.5 rounded-full bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
