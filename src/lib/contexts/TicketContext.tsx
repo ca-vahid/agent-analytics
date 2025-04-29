@@ -1,4 +1,6 @@
 import React, { createContext, useState, useContext, useEffect, useMemo } from 'react';
+import { v4 as uuidv4 } from 'uuid';
+import { set, get, del, clear } from 'idb-keyval';
 import { Ticket, FilterOptions, TicketAggregate, TimeSeriesData } from '../types';
 import { 
   processTicketData, 
@@ -27,6 +29,7 @@ interface TicketContextType {
   setRawData: (data: any[]) => void;
   setFilters: (filters: Partial<FilterOptions>) => void;
   resetFilters: () => void;
+  resetData: () => void;
   
   // Unique filter options
   uniqueGroups: string[];
@@ -66,15 +69,59 @@ const defaultFilters: FilterOptions = {
 
 const TicketContext = createContext<TicketContextType | undefined>(undefined);
 
-export const TicketProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  // Initialize state from sessionStorage instead of localStorage
-  const [rawData, setRawDataState] = useState<any[]>(() => {
-    if (typeof window !== 'undefined') {
-      const savedData = sessionStorage.getItem('ticketRawData');
-      return savedData ? JSON.parse(savedData) : [];
+// Keys for storage
+const TICKET_DATA_KEY = 'ticketData';
+const SESSION_ID_KEY = 'ticketSessionId';
+
+// Create or retrieve a persistent sessionId for this browser session
+const getSessionId = () => {
+  if (typeof window !== 'undefined') {
+    let sessionId = sessionStorage.getItem('ticketAnalyticsSessionId');
+    if (!sessionId) {
+      sessionId = uuidv4();
+      sessionStorage.setItem('ticketAnalyticsSessionId', sessionId);
     }
-    return [];
-  });
+    return sessionId;
+  }
+  return '';
+};
+
+export const TicketProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  // Get the current session ID - this will be different for each browser session
+  const currentSessionId = getSessionId();
+  
+  // Initialize state from IndexedDB
+  const [rawData, setRawDataState] = useState<any[]>([]);
+  const [isDbLoaded, setIsDbLoaded] = useState(false);
+  
+  // Load data from IndexedDB on initial mount
+  useEffect(() => {
+    async function loadFromDb() {
+      try {
+        // Get the saved session ID
+        const savedSessionId = await get(SESSION_ID_KEY);
+        
+        // Only load data if it's from the current session
+        if (savedSessionId === currentSessionId) {
+          const data = await get(TICKET_DATA_KEY);
+          if (data && Array.isArray(data)) {
+            console.log(`Loaded ${data.length} records from IndexedDB`);
+            setRawDataState(data);
+          }
+        } else if (savedSessionId) {
+          console.log('Data found from a different session - starting fresh');
+          // Clear old data
+          await clear();
+        }
+      } catch (err) {
+        console.error('Error loading from IndexedDB:', err);
+      } finally {
+        setIsDbLoaded(true);
+      }
+    }
+    
+    loadFromDb();
+  }, [currentSessionId]);
 
   const [filters, setFiltersState] = useState<FilterOptions>(() => {
     if (typeof window !== 'undefined') {
@@ -88,11 +135,38 @@ export const TicketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [filteredTickets, setFilteredTickets] = useState<Ticket[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   
-  // Save to sessionStorage when data changes
-  const setRawData = (data: any[]) => {
+  // Helper to clear storage
+  const clearStorage = async () => {
+    try {
+      // Clear IndexedDB
+      await clear();
+      console.log('Cleared IndexedDB storage');
+    } catch (err) {
+      console.warn('Error clearing storage:', err);
+    }
+  };
+
+  // Public facing function to reset all data
+  const resetData = async () => {
+    await clearStorage();
+    setRawDataState([]);
+  };
+
+  // Save to IndexedDB
+  const setRawData = async (data: any[]) => {
     setRawDataState(data);
-    if (typeof window !== 'undefined') {
-      sessionStorage.setItem('ticketRawData', JSON.stringify(data));
+    
+    if (typeof window === 'undefined' || !data) return;
+    
+    try {
+      // Save session ID
+      await set(SESSION_ID_KEY, currentSessionId);
+      
+      // Save data
+      await set(TICKET_DATA_KEY, data);
+      console.log(`Saved ${data.length} records to IndexedDB`);
+    } catch (err) {
+      console.warn('Error saving to IndexedDB, using in-memory only:', err);
     }
   };
 
@@ -171,6 +245,7 @@ export const TicketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         setRawData,
         setFilters,
         resetFilters,
+        resetData,
         uniqueGroups,
         uniqueCategories,
         uniqueAgents,

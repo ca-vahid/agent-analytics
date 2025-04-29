@@ -49,7 +49,7 @@ const truncateName = (name: string): string => {
 };
 
 const CategoryDistributionChart: React.FC = () => {
-  const { categoryData, tickets } = useTickets();
+  const { categoryData, tickets, filteredTickets } = useTickets();
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [ticketsToView, setTicketsToView] = useState<any[]>([]);
@@ -132,18 +132,18 @@ const CategoryDistributionChart: React.FC = () => {
     let modalTitle = '';
     let ticketsToShow = [];
     
+    // Use filteredTickets instead of all tickets to respect existing filters
     if (data.isUnknown) {
       // Handle tickets with no category
       categoryToFilter = '';
       modalTitle = 'Tickets with no Categories';
-      ticketsToShow = tickets.filter(ticket => 
+      ticketsToShow = filteredTickets.filter(ticket => 
         !ticket.category || 
         ticket.category.toLowerCase() === 'unknown' || 
         ticket.category.toLowerCase() === 'unassigned'
       );
     } else if (data.isOther) {
       // Handle "Less Frequent Categories"
-      // This will show all tickets that aren't in the top categories or "unknown"
       modalTitle = 'Less Frequent Categories';
       
       // Get the list of top category names
@@ -152,7 +152,7 @@ const CategoryDistributionChart: React.FC = () => {
         .map(item => item.originalName || item.name);
       
       // Find tickets that aren't in the top categories and have a category
-      ticketsToShow = tickets.filter(ticket => 
+      ticketsToShow = filteredTickets.filter(ticket => 
         ticket.category && 
         ticket.category.toLowerCase() !== 'unknown' &&
         ticket.category.toLowerCase() !== 'unassigned' &&
@@ -162,7 +162,7 @@ const CategoryDistributionChart: React.FC = () => {
       // Regular category
       categoryToFilter = data.originalName || data.name;
       modalTitle = `Category: ${categoryToFilter}`;
-      ticketsToShow = tickets.filter(ticket => ticket.category === categoryToFilter);
+      ticketsToShow = filteredTickets.filter(ticket => ticket.category === categoryToFilter);
     }
     
     setSelectedCategory(modalTitle);

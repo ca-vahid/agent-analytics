@@ -1,3 +1,5 @@
+"use client";
+// Layout uses React hooks and context, must be a Client Component
 import React, { useState } from 'react';
 import Header from './Header';
 import FilterSidebar from './FilterSidebar';
@@ -6,7 +8,7 @@ import { ThemeProvider } from '@/lib/contexts/ThemeContext';
 import { TicketProvider } from '@/lib/contexts/TicketContext';
 import { ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
 
-const Layout: React.FC = () => {
+const Layout: React.FC<{ children?: React.ReactNode }> = ({ children }) => {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   return (
@@ -40,7 +42,7 @@ const Layout: React.FC = () => {
             </div>
             
             <div className="h-[calc(100vh-6rem)] overflow-y-auto rounded-xl bg-white dark:bg-gray-800/30 shadow-sm p-2">
-              <Dashboard />
+              {children ?? <Dashboard />}
             </div>
           </div>
         </div>
