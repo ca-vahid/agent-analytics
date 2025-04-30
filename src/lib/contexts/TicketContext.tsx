@@ -207,7 +207,15 @@ export const TicketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   }, [tickets, filters]);
   
   // Extract unique values for filters
-  const uniqueGroups = useMemo(() => getUniqueValues(tickets, 'group'), [tickets]);
+  const uniqueGroups = useMemo(() => {
+    const allGroups = getUniqueValues(tickets, 'group');
+    const coreshack = 'Coreshack';
+    const itTeam = 'IT Team';
+    // All teams except Coreshack
+    const itSubteams = allGroups.filter(g => g !== coreshack);
+    // Place IT Team and Coreshack at the top, then all subteams
+    return [itTeam, coreshack, ...itSubteams];
+  }, [tickets]);
   const uniqueCategories = useMemo(() => getUniqueValues(tickets, 'category'), [tickets]);
   const uniqueAgents = useMemo(() => getUniqueValues(tickets, 'agentName'), [tickets]);
   const uniqueSources = useMemo(() => getUniqueValues(tickets, 'source'), [tickets]);

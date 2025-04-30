@@ -168,18 +168,32 @@ export function groupTicketsByWeekAndAgent(tickets: Ticket[]): { [yearWeek: stri
  */
 export function groupTicketsByMonthAndTeam(tickets: Ticket[]): { [yearMonth: string]: { [teamName: string]: number } } {
   const monthTeamCounts: { [yearMonth: string]: { [teamName: string]: number } } = {};
+  const coreshack = 'Coreshack';
+  const itTeam = 'IT Team';
 
   tickets.forEach(ticket => {
     const yearMonth = ticket.yearMonth || 'Unknown';
-    const teamName = ticket.group || 'Unknown'; // Use 'group' field for team name
-
+    const teamName = ticket.group || 'Unknown';
     if (!monthTeamCounts[yearMonth]) {
       monthTeamCounts[yearMonth] = {};
     }
-    if (!monthTeamCounts[yearMonth][teamName]) {
-      monthTeamCounts[yearMonth][teamName] = 0;
+    // Aggregate all non-Coreshack teams under 'IT Team'
+    if (teamName === coreshack) {
+      if (!monthTeamCounts[yearMonth][coreshack]) {
+        monthTeamCounts[yearMonth][coreshack] = 0;
+      }
+      monthTeamCounts[yearMonth][coreshack]++;
+    } else {
+      if (!monthTeamCounts[yearMonth][itTeam]) {
+        monthTeamCounts[yearMonth][itTeam] = 0;
+      }
+      monthTeamCounts[yearMonth][itTeam]++;
+      // Optionally, keep individual subteam counts as well
+      if (!monthTeamCounts[yearMonth][teamName]) {
+        monthTeamCounts[yearMonth][teamName] = 0;
+      }
+      monthTeamCounts[yearMonth][teamName]++;
     }
-    monthTeamCounts[yearMonth][teamName]++;
   });
 
   return monthTeamCounts;
@@ -190,18 +204,32 @@ export function groupTicketsByMonthAndTeam(tickets: Ticket[]): { [yearMonth: str
  */
 export function groupTicketsByWeekAndTeam(tickets: Ticket[]): { [yearWeek: string]: { [teamName: string]: number } } {
   const weekTeamCounts: { [yearWeek: string]: { [teamName: string]: number } } = {};
+  const coreshack = 'Coreshack';
+  const itTeam = 'IT Team';
 
   tickets.forEach(ticket => {
     const yearWeek = extractYearWeek(ticket.createdDate);
     const teamName = ticket.group || 'Unknown';
-
     if (!weekTeamCounts[yearWeek]) {
       weekTeamCounts[yearWeek] = {};
     }
-    if (!weekTeamCounts[yearWeek][teamName]) {
-      weekTeamCounts[yearWeek][teamName] = 0;
+    // Aggregate all non-Coreshack teams under 'IT Team'
+    if (teamName === coreshack) {
+      if (!weekTeamCounts[yearWeek][coreshack]) {
+        weekTeamCounts[yearWeek][coreshack] = 0;
+      }
+      weekTeamCounts[yearWeek][coreshack]++;
+    } else {
+      if (!weekTeamCounts[yearWeek][itTeam]) {
+        weekTeamCounts[yearWeek][itTeam] = 0;
+      }
+      weekTeamCounts[yearWeek][itTeam]++;
+      // Optionally, keep individual subteam counts as well
+      if (!weekTeamCounts[yearWeek][teamName]) {
+        weekTeamCounts[yearWeek][teamName] = 0;
+      }
+      weekTeamCounts[yearWeek][teamName]++;
     }
-    weekTeamCounts[yearWeek][teamName]++;
   });
 
   return weekTeamCounts;
@@ -285,32 +313,48 @@ export function filterTickets(tickets: Ticket[], filters: FilterOptions): Ticket
         return false;
       }
     }
-    
     // Group filter
-    if (filters.groups.length > 0 && !filters.groups.includes(ticket.group)) {
-      return false;
+    if (filters.groups.length > 0) {
+      const coreshack = 'Coreshack';
+      const itTeam = 'IT Team';
+      // If IT Team is selected, match all non-Coreshack teams
+      const hasIT = filters.groups.includes(itTeam);
+      if (hasIT) {
+        if (ticket.group === coreshack && !filters.groups.includes(coreshack)) {
+          return false;
+        }
+        if (ticket.group !== coreshack && !filters.groups.includes(ticket.group) && !hasIT) {
+          return false;
+        }
+        // If IT Team is selected, include all non-Coreshack teams
+        if (ticket.group !== coreshack) {
+          return true;
+        }
+        // If Coreshack is also selected, include it
+        return filters.groups.includes(coreshack);
+      } else {
+        // No IT Team selected, use normal logic
+        if (!filters.groups.includes(ticket.group)) {
+          return false;
+        }
+      }
     }
-    
     // Category filter
     if (filters.categories.length > 0 && !filters.categories.includes(ticket.category)) {
       return false;
     }
-    
     // Agent filter
     if (filters.agents.length > 0 && !filters.agents.includes(ticket.agentName)) {
       return false;
     }
-    
     // Source filter
     if (filters.sources.length > 0 && !filters.sources.includes(ticket.source)) {
       return false;
     }
-    
     // Priority filter
     if (filters.priorities.length > 0 && !filters.priorities.includes(ticket.priority)) {
       return false;
     }
-    
     return true;
   });
 }

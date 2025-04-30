@@ -17,10 +17,19 @@ const Header: React.FC = () => {
   const { tickets, resetData } = useTickets();
   const pathname = usePathname();
   
-  // Format the date of the last upload
-  const formatDate = () => {
+  // Format the date range of imported tickets
+  const getTicketDateRange = () => {
     if (tickets.length === 0) return null;
-    
+    // Sort tickets by createdDate
+    const sorted = [...tickets].sort((a, b) => new Date(a.createdDate).getTime() - new Date(b.createdDate).getTime());
+    const first = new Date(sorted[0].createdDate);
+    const last = new Date(sorted[sorted.length - 1].createdDate);
+    const options = { year: 'numeric', month: 'short', day: 'numeric' } as const;
+    return `${first.toLocaleDateString('en-US', options)} - ${last.toLocaleDateString('en-US', options)}`;
+  };
+
+  // Format the current date/time (small, less prominent)
+  const getCurrentDate = () => {
     return new Date().toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'short',
@@ -44,11 +53,14 @@ const Header: React.FC = () => {
                 Ticket Analytics
               </h1>
               {tickets.length > 0 && (
-                <div className="hidden md:flex items-center ml-6 text-sm text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-700/50 px-3 py-1 rounded-full">
-                  <span className="flex items-center">
-                    <CalendarIcon className="h-3.5 w-3.5 mr-1.5 text-gray-400 dark:text-gray-500" />
-                    {formatDate()}
-                  </span>
+                <div className="hidden md:block ml-8 mt-1.5 mb-1">
+                  <div className="flex items-center bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800 text-gray-700 dark:text-gray-200 px-5 py-1.5 rounded-md shadow-sm min-w-[340px]">
+                    <div className="flex items-center">
+                      <CalendarIcon className="h-4 w-4 mr-2 text-blue-500 dark:text-blue-400" />
+                      <span className="text-sm text-blue-700 dark:text-blue-300 font-medium">Ticket Date Range:</span>
+                    </div>
+                    <span className="text-base font-semibold ml-2">{getTicketDateRange()}</span>
+                  </div>
                 </div>
               )}
             </div>

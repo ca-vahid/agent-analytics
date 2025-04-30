@@ -199,8 +199,11 @@ const TrendForecastChart: React.FC<TrendForecastChartProps> = ({
       const dataPoints = Object.entries(rawData)
         .map(([period, counts]) => ({ period, count: counts[name] || 0 }))
         .sort((a, b) => a.period.localeCompare(b.period));
-      const n = dataPoints.length;
-      const actualSeries = dataPoints.map(pt => pt.count);
+      // --- Trim leading zeros ---
+      const firstNonZeroIdx = dataPoints.findIndex(pt => pt.count > 0);
+      const trimmedDataPoints = firstNonZeroIdx === -1 ? [] : dataPoints.slice(firstNonZeroIdx);
+      const n = trimmedDataPoints.length;
+      const actualSeries = trimmedDataPoints.map(pt => pt.count);
       
       // Forecast
       let forecastValues: number[] = [];
@@ -230,20 +233,19 @@ const TrendForecastChart: React.FC<TrendForecastChartProps> = ({
           // Calculate additional statistics
           stats[name].r2 = calculateRSquared(xs, ys, slope, intercept);
           stats[name].trendDirection = getTrendDirection(slope);
-          stats[name].growthRate = calculateGrowthRate(actualSeries[0], actualSeries[n-1], n);
           stats[name].slope = slope;
           stats[name].lastActualValue = lastActualValue;
           stats[name].firstForecastValue = firstForecastValue;
-          
-          // Calculate period growth (actuals)
-          const periodGrowth = calculateGrowthRate(actualSeries[0], actualSeries[n-1], n);
-          // Calculate trend growth (regression line)
-          const regStart = intercept + slope * 0;
-          const regEnd = intercept + slope * (n-1);
-          const trendGrowth = calculateTrendGrowth(regStart, regEnd, n);
-          stats[name].periodGrowth = periodGrowth;
-          stats[name].trendGrowth = trendGrowth;
-          
+
+          // Simplified period growth: absolute change and average per period
+          const absChange = actualSeries[n-1] - actualSeries[0];
+          const avgPerPeriod = n > 1 ? absChange / (n-1) : 0;
+          stats[name].periodGrowth = absChange; // repurpose for absolute change
+          stats[name].growthRate = avgPerPeriod; // repurpose for avg per period
+
+          // Trend growth: just show slope (already shown)
+          stats[name].trendGrowth = 0; // not used
+
           for (let i = 1; i <= forecastPeriods; i++) {
             const xi = (n - 1) + i;
             forecastValues.push(intercept + slope * xi);
@@ -262,28 +264,22 @@ const TrendForecastChart: React.FC<TrendForecastChartProps> = ({
             firstForecastValue = Math.round(forecastValues[0]);
           }
 
-          // Calculate stats for Holt's method
-          const growthRate = calculateGrowthRate(actualSeries[0], actualSeries[n-1], n);
-          stats[name].growthRate = growthRate;
+          // Simplified period growth: absolute change and average per period
+          const absChange = actualSeries[n-1] - actualSeries[0];
+          const avgPerPeriod = n > 1 ? absChange / (n-1) : 0;
+          stats[name].periodGrowth = absChange; // repurpose for absolute change
+          stats[name].growthRate = avgPerPeriod; // repurpose for avg per period
+
           stats[name].trendDirection = getTrendDirection(finalTrend); // Use Holt's trend
           stats[name].r2 = 0; // R-squared not standard for Holt's
           stats[name].slope = finalTrend; // Represent trend with final Holt trend value
           stats[name].lastActualValue = lastActualValue;
           stats[name].firstForecastValue = firstForecastValue;
-
-          // Calculate period growth (actuals)
-          const periodGrowth = calculateGrowthRate(actualSeries[0], actualSeries[n-1], n);
-          // Calculate trend growth (smoothed series)
-          const holt = holtSmoothing(actualSeries, alpha, beta, forecastPeriods);
-          const smoothedStart = holt.smoothed[0];
-          const smoothedEnd = holt.smoothed[n-1];
-          const trendGrowth = calculateTrendGrowth(smoothedStart, smoothedEnd, n);
-          stats[name].periodGrowth = periodGrowth;
-          stats[name].trendGrowth = trendGrowth;
+          stats[name].trendGrowth = 0; // not used
         }
       }
       // Build period labels for forecast
-      const last = dataPoints[n - 1]?.period || '';
+      const last = trimmedDataPoints[n - 1]?.period || '';
       const forecastPeriodsArr: string[] = [];
       for (let idx = 0; idx < forecastPeriods; idx++) {
         let period = last;
@@ -308,7 +304,7 @@ const TrendForecastChart: React.FC<TrendForecastChartProps> = ({
         }
         forecastPeriodsArr.push(period);
       }
-      return { name, dataPoints, forecastValues, forecastPeriodsArr };
+      return { name, dataPoints: trimmedDataPoints, forecastValues, forecastPeriodsArr };
     });
 
     // Build combined chart data by period
@@ -350,12 +346,9 @@ const TrendForecastChart: React.FC<TrendForecastChartProps> = ({
         {names.map((name, idx) => {
           const nameStat = stats[name];
           if (!nameStat) return null;
-          
+          const absChange = nameStat.periodGrowth;
+          const avgPerPeriod = nameStat.growthRate;
           const r2Percent = (nameStat.r2 * 100).toFixed(1);
-          // Show both period and trend growth
-          const periodGrowthPercent = (nameStat.periodGrowth * 100).toFixed(2);
-          const trendGrowthPercent = (nameStat.trendGrowth * 100).toFixed(2);
-          
           return (
             <div key={name} className="text-left p-2 border border-gray-200 dark:border-gray-700 rounded">
               <div className="font-semibold text-sm mb-1 flex items-center">
@@ -372,33 +365,21 @@ const TrendForecastChart: React.FC<TrendForecastChartProps> = ({
                                    "text-gray-600 dark:text-gray-300"}`}>
                   {nameStat.trendDirection}
                 </div>
-                
                 <InfoTooltip 
                   label="Slope:" 
                   explanation="The rate of change per period. A positive value means an upward trend; negative means downward. The magnitude indicates how steep the trend is." 
                 />
                 <div className="font-medium text-gray-700 dark:text-gray-300">{nameStat.slope.toFixed(3)}</div>
-                
                 <InfoTooltip 
-                  label="Period Growth (actual):" 
-                  explanation="Percentage change from the first to last actual data point. This compares only the start and end points, ignoring values in between." 
+                  label="Period Change (actual):" 
+                  explanation="The total change from the first to last actual data point (last - first)." 
                 />
-                <div className={`font-medium ${parseFloat(periodGrowthPercent) > 0 ? "text-green-600 dark:text-green-400" : 
-                                   parseFloat(periodGrowthPercent) < 0 ? "text-red-600 dark:text-red-400" : 
-                                   "text-gray-600 dark:text-gray-300"}`}>
-                  {periodGrowthPercent}%
-                </div>
-                
+                <div className={`font-medium ${absChange > 0 ? "text-green-600 dark:text-green-400" : absChange < 0 ? "text-red-600 dark:text-red-400" : "text-gray-600 dark:text-gray-300"}`}>{absChange > 0 ? "+" : ""}{absChange.toFixed(1)}</div>
                 <InfoTooltip 
-                  label="Trend Growth (model):" 
-                  explanation={`Percentage change based on the statistical model (${method === 'linear' ? 'linear regression' : 'exponential smoothing'}). This better reflects the overall trend direction than Period Growth.`} 
+                  label="Avg Change per Period:" 
+                  explanation="The average change per period (e.g., per month or week)." 
                 />
-                <div className={`font-medium ${parseFloat(trendGrowthPercent) > 0 ? "text-green-600 dark:text-green-400" : 
-                                   parseFloat(trendGrowthPercent) < 0 ? "text-red-600 dark:text-red-400" : 
-                                   "text-gray-600 dark:text-gray-300"}`}>
-                  {trendGrowthPercent}%
-                </div>
-                
+                <div className="font-medium text-gray-700 dark:text-gray-300">{avgPerPeriod > 0 ? "+" : ""}{avgPerPeriod.toFixed(2)}</div>
                 {method === 'linear' && nameStat.r2 !== 0 && (
                   <>
                     <InfoTooltip 

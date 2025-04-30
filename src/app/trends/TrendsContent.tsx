@@ -79,7 +79,15 @@ const TrendsContent: React.FC = () => {
                     >
                       {({ selected }) => (
                         <>
-                          <span className={`block truncate ${selected ? 'font-medium' : 'font-normal'}`}>{item}</span>
+                          <span className={`block truncate ${selected ? 'font-medium' : 'font-normal'} 
+                            ${scope === 'team' && item === 'IT Team' ? 'font-bold text-blue-600 dark:text-blue-400' : ''} 
+                            ${scope === 'team' && item === 'Coreshack' ? 'font-bold text-emerald-600 dark:text-emerald-400' : ''}`}
+                          >
+                            {item}
+                            {scope === 'team' && item === 'IT Team' && (
+                              <span className="ml-1 text-xs font-normal text-blue-400 dark:text-blue-300">(all IT groups combined)</span>
+                            )}
+                          </span>
                           {selected ? (
                             <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-blue-600 dark:text-blue-400">
                               <CheckIcon className="h-5 w-5" aria-hidden="true" />

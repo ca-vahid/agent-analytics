@@ -144,7 +144,7 @@ const MultiSelectDropdown: React.FC<{
                       </div>
                     ) : (
                       <div className="space-y-1">
-                        {filteredOptions.map(option => (
+                        {filteredOptions.map((option, index) => (
                           <div 
                             key={option}
                             onClick={() => toggleOption(option)}
@@ -163,7 +163,11 @@ const MultiSelectDropdown: React.FC<{
                                 <CheckIcon className="h-3 w-3 text-white" />
                               )}
                             </div>
-                            <span className="truncate">{option}</span>
+                            <span className={`truncate ${index < 2 ? 'font-bold' : ''} ${option === 'IT Team' ? 'text-blue-600 dark:text-blue-400' : option === 'Coreshack' ? 'text-emerald-600 dark:text-emerald-400' : ''}`}>{option}
+                              {option === 'IT Team' && (
+                                <span className="ml-1 text-xs font-normal text-blue-400 dark:text-blue-300" title="All IT groups combined">(all IT groups combined)</span>
+                              )}
+                            </span>
                           </div>
                         ))}
                       </div>
@@ -254,7 +258,7 @@ const MultiSelectDropdown: React.FC<{
                   </div>
                 ) : (
                   <div className="space-y-1">
-                    {filteredOptions.map(option => (
+                    {filteredOptions.map((option, index) => (
                       <div 
                         key={option}
                         onClick={() => toggleOption(option)}
@@ -273,7 +277,11 @@ const MultiSelectDropdown: React.FC<{
                             <CheckIcon className="h-3 w-3 text-white" />
                           )}
                         </div>
-                        <span className="truncate">{option}</span>
+                        <span className={`truncate ${index < 2 ? 'font-bold' : ''} ${option === 'IT Team' ? 'text-blue-600 dark:text-blue-400' : option === 'Coreshack' ? 'text-emerald-600 dark:text-emerald-400' : ''}`}>{option}
+                          {option === 'IT Team' && (
+                            <span className="ml-1 text-xs font-normal text-blue-400 dark:text-blue-300" title="All IT groups combined">(all IT groups combined)</span>
+                          )}
+                        </span>
                       </div>
                     ))}
                   </div>
